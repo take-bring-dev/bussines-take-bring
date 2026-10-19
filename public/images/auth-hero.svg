@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" fill="none">
+  <rect width="640" height="480" rx="24" fill="#1A1F16"/>
+  <circle cx="520" cy="90" r="70" fill="#ABC629" opacity="0.25"/>
+  <circle cx="80" cy="400" r="90" fill="#8FA622" opacity="0.2"/>
+  <!-- road -->
+  <rect x="40" y="300" width="560" height="16" rx="4" fill="#5C6754" opacity="0.35"/>
+  <rect x="60" y="304" width="40" height="8" rx="2" fill="#D4E88A" opacity="0.5"/>
+  <rect x="140" y="304" width="40" height="8" rx="2" fill="#D4E88A" opacity="0.5"/>
+  <rect x="220" y="304" width="40" height="8" rx="2" fill="#D4E88A" opacity="0.5"/>
+  <rect x="300" y="304" width="40" height="8" rx="2" fill="#D4E88A" opacity="0.5"/>
+  <rect x="380" y="304" width="40" height="8" rx="2" fill="#D4E88A" opacity="0.5"/>
+  <rect x="460" y="304" width="40" height="8" rx="2" fill="#D4E88A" opacity="0.5"/>
+  <!-- truck body -->
+  <rect x="180" y="220" width="220" height="80" rx="10" fill="#ABC629"/>
+  <rect x="400" y="240" width="70" height="60" rx="8" fill="#D4E88A"/>
+  <rect x="455" y="255" width="28" height="22" rx="3" fill="#1A1F16" opacity="0.35"/>
+  <circle cx="220" cy="310" r="22" fill="#1A1F16"/>
+  <circle cx="220" cy="310" r="10" fill="#F7F8F3"/>
+  <circle cx="420" cy="310" r="22" fill="#1A1F16"/>
+  <circle cx="420" cy="310" r="10" fill="#F7F8F3"/>
+  <!-- package -->
+  <rect x="100" y="250" width="48" height="48" rx="6" fill="#D4E88A"/>
+  <path d="M100 274h48M124 250v48" stroke="#1A1F16" stroke-width="2" opacity="0.4"/>
+</svg>

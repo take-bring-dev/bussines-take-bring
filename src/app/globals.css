@@ -1,26 +1,144 @@
 @import "tailwindcss";
 
+/*
+ * Take & Bring Business — Design System v1.0 (Stitch locked)
+ * Scope: Business Landing, Login, Sign up — keep consistency
+ * Do not invent purple/indigo. Light mode only. 8px radius.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand lime */
+  --brand-accent: #abc629;
+  --brand-dark: #556500;
+  --brand-hover: #8fa622;
+  --brand-light: #d3ef51;
+  --brand-light-fixed: #d4e88a;
+
+  /* Surfaces */
+  --surface: #f1fde5;
+  --surface-low: #ecf8df;
+  --surface-container: #e6f2da;
+  --surface-high: #e0ecd4;
+  --surface-card: #ffffff;
+
+  /* Content */
+  --ink: #151e10;
+  --muted: #454836;
+
+  /* Outline */
+  --outline: #c6c8b0;
+  --outline-strong: #767964;
+
+  /* Feedback */
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --success: #2c6a3d;
+  --success-container: #d1e8d5;
+  --info: #1a56ba;
+  --info-container: #d7e2ff;
+
+  /* Mapped shadcn-style aliases */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-card);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-card);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand-dark);
+  --primary-foreground: #ffffff;
+  --primary-container: var(--brand-accent);
+  --on-primary-container: var(--brand-dark);
+  --secondary: var(--brand-dark);
+  --secondary-foreground: #ffffff;
+  --secondary-container: var(--surface-container);
+  --muted-bg: var(--surface-container);
+  --muted-foreground: var(--muted);
+  --accent: var(--surface-high);
+  --accent-foreground: var(--ink);
+  --destructive: var(--error);
+  --destructive-foreground: #ffffff;
+  --border: var(--outline);
+  --input: var(--outline);
+  --ring: var(--brand-hover);
+  --radius: 8px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-container: var(--secondary-container);
+  --color-muted: var(--muted-bg);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-error-container: var(--error-container);
+  --color-success: var(--success);
+  --color-success-container: var(--success-container);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-outline: var(--outline);
+  --color-outline-strong: var(--outline-strong);
+  --color-surface: var(--surface);
+  --color-surface-low: var(--surface-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-high: var(--surface-high);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-light: var(--brand-light);
+  --radius-lg: var(--radius);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--brand-accent);
+  color: var(--ink);
+}
+
+.blueprint-grid {
+  background-size: 24px 24px;
+  background-image:
+    linear-gradient(to right, rgba(198, 200, 176, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(198, 200, 176, 0.22) 1px, transparent 1px);
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--outline);
+  border-radius: 9999px;
+}
+
+/* Module D — focus ring (lime + dark) */
+.focus-lime:focus-within,
+.input-focus:focus {
+  outline: none;
+  border-color: var(--brand-dark);
+  box-shadow: 0 0 0 2px rgba(171, 198, 41, 0.5);
 }
