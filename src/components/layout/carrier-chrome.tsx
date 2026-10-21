@@ -8,14 +8,16 @@ import {
   LogOut,
   Menu,
   Package,
+  Settings,
   Truck,
   Wallet,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { NotificationsDrawer } from "@/components/notifications/notifications-drawer";
-import { PushProvider } from "@/components/notifications/push-provider";
+import { PushBootstrap } from "@/components/notifications/push-bootstrap";
+import { UnreadBadgeSync } from "@/components/notifications/unread-badge-sync";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ const NAV = [
   { href: "/c/loads", label: "My Bids & Wins", icon: Package },
   { href: "/c/fleet", label: "Fleet & Drivers", icon: Truck },
   { href: "/c/earnings", label: "Earnings & Escrow", icon: Wallet },
+  { href: "/c/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function navActive(pathname: string, href: string, exact?: boolean) {
@@ -50,7 +53,13 @@ export function CarrierChrome({
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [liveUnread, setLiveUnread] = useState(unreadCount);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    setLiveUnread(unreadCount);
+  }, [unreadCount]);
+
   const initials =
     companyName
       .split(/\s+/)
@@ -164,7 +173,6 @@ export function CarrierChrome({
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <PushProvider compact />
             <button
               type="button"
               onClick={() => setNotificationsOpen(true)}
@@ -172,9 +180,9 @@ export function CarrierChrome({
               aria-label="Notifications"
             >
               <Bell className="size-5" />
-              {unreadCount > 0 ? (
+              {liveUnread > 0 ? (
                 <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                  {liveUnread > 9 ? "9+" : liveUnread}
                 </span>
               ) : null}
             </button>
@@ -272,7 +280,10 @@ export function CarrierChrome({
         onClose={() => setNotificationsOpen(false)}
         title="Notifications"
         description="Bids, awards, escrow, and delivery alerts"
+        onUnreadChange={setLiveUnread}
       />
+      <UnreadBadgeSync onCount={setLiveUnread} />
+      <PushBootstrap />
     </div>
   );
 }

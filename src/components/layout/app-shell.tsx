@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Activity,
   Bell,
   LayoutDashboard,
   Package,
@@ -13,7 +14,11 @@ import {
   Plus,
   Settings,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/brand/logo-mark";
+import { NotificationsDrawer } from "@/components/notifications/notifications-drawer";
+import { PushBootstrap } from "@/components/notifications/push-bootstrap";
+import { UnreadBadgeSync } from "@/components/notifications/unread-badge-sync";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
@@ -23,16 +28,15 @@ const navByRole: Record<"shipper" | "carrier" | "admin", NavItem[]> = {
   shipper: [
     { href: "/s", label: "Overview", icon: LayoutDashboard },
     { href: "/s/loads", label: "Loads", icon: Package },
-    { href: "/s/notifications", label: "Alerts", icon: Bell },
   ],
   carrier: [
     { href: "/c", label: "Overview", icon: LayoutDashboard },
     { href: "/c/loads", label: "Open loads", icon: Package },
     { href: "/c/fleet", label: "Fleet", icon: Truck },
-    { href: "/c/notifications", label: "Alerts", icon: Bell },
   ],
   admin: [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
+    { href: "/admin/activity", label: "Timeline", icon: Activity },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/kyc", label: "KYC", icon: Shield },
     { href: "/admin/loads", label: "Loads", icon: Package },
@@ -56,18 +60,24 @@ export function AppShell({
   title,
   children,
   subtitle,
+  unreadCount = 0,
 }: {
   role: "shipper" | "carrier" | "admin";
   title: string;
   children: React.ReactNode;
   subtitle?: string;
+  unreadCount?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const items = navByRole[role];
   const showFab = role === "shipper" && !pathname.includes("/loads/new");
-  const alertsHref =
-    role === "shipper" ? "/s/notifications" : role === "carrier" ? "/c/notifications" : "/admin";
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [liveUnread, setLiveUnread] = useState(unreadCount);
+
+  useEffect(() => {
+    setLiveUnread(unreadCount);
+  }, [unreadCount]);
 
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -135,13 +145,13 @@ export function AppShell({
 
         <div className="flex flex-col gap-2 border-t border-border/60 pt-2">
           <div className="flex gap-1">
-            <button
-              type="button"
+            <Link
+              href={role === "admin" ? "/admin" : role === "shipper" ? "/s/settings" : "/c/settings"}
               className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-surface-high"
             >
               <Settings className="size-3.5" />
               Settings
-            </button>
+            </Link>
             <button
               type="button"
               onClick={() => void signOut()}
@@ -180,13 +190,19 @@ export function AppShell({
                 EU Market: <span className="text-foreground">Active</span>
               </span>
             </div>
-            <Link
-              href={alertsHref}
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen(true)}
               className="relative flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-container"
               aria-label="Notifications"
             >
               <Bell className="size-5" />
-            </Link>
+              {liveUnread > 0 ? (
+                <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold leading-none text-on-primary-container">
+                  {liveUnread > 9 ? "9+" : liveUnread}
+                </span>
+              ) : null}
+            </button>
             {role === "shipper" ? (
               <Link
                 href="/s/loads/new"
@@ -237,6 +253,20 @@ export function AppShell({
           })}
         </nav>
       </div>
+
+      <NotificationsDrawer
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        title={role === "admin" ? "Platform timeline" : "Notifications"}
+        description={
+          role === "admin"
+            ? "Shipper loads, carrier bids, awards, and delivery events"
+            : "Bids, awards, escrow, and delivery alerts"
+        }
+        onUnreadChange={setLiveUnread}
+      />
+      <UnreadBadgeSync onCount={setLiveUnread} />
+      <PushBootstrap />
     </div>
   );
 }

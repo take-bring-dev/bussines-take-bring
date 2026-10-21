@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createEscrowForAward } from "@/lib/escrow";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
-import { notifyUser, notifyUsers } from "@/lib/notify";
+import { notifyAdmins, notifyUser, notifyUsers } from "@/lib/notify";
 
 export async function POST(
   request: Request,
@@ -86,6 +86,13 @@ export async function POST(
     currency: app.currency,
   });
 
+  const carrier = await prisma.user.findUnique({
+    where: { id: app.applicantUserId },
+    select: { name: true, email: true },
+  });
+  const carrierLabel = carrier?.name || carrier?.email || "Carrier";
+  const shipperLabel = auth.user.name || auth.user.email || "Shipper";
+
   await notifyUser({
     userId: app.applicantUserId,
     type: "application.accepted",
@@ -115,6 +122,20 @@ export async function POST(
     body: `Fund ${Number(app.proposedPrice).toFixed(2)} ${app.currency} to lock the contract.`,
     payload: { loadId, escrowId: escrow.id },
     href: "/s/billing",
+  });
+
+  await notifyAdmins({
+    type: "admin.application.accepted",
+    title: "Carrier awarded a load",
+    body: `${shipperLabel} awarded ${carrierLabel} · ${load.pickupCity} → ${load.deliveryCity} · €${Number(app.proposedPrice).toFixed(2)}`,
+    payload: {
+      loadId,
+      applicationId: app.id,
+      shipperId: load.shipperId,
+      carrierId: app.applicantUserId,
+      carrierName: carrierLabel,
+    },
+    href: `/admin/loads/${loadId}`,
   });
 
   return NextResponse.json({

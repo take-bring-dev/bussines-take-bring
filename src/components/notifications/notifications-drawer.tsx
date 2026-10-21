@@ -10,11 +10,13 @@ export function NotificationsDrawer({
   onClose,
   title = "Notifications",
   description = "Live alerts for bids, awards, escrow, and delivery",
+  onUnreadChange,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   description?: string;
+  onUnreadChange?: (count: number) => void;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -83,7 +85,12 @@ export function NotificationsDrawer({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {open ? <LiveNotifications /> : null}
+          {open ? (
+            <LiveNotifications
+              onNavigate={onClose}
+              onUnreadChange={onUnreadChange}
+            />
+          ) : null}
         </div>
       </aside>
     </div>

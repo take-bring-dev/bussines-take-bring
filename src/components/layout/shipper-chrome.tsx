@@ -10,12 +10,14 @@ import {
   Menu,
   Package,
   Plus,
+  Settings,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { NotificationsDrawer } from "@/components/notifications/notifications-drawer";
-import { PushProvider } from "@/components/notifications/push-provider";
+import { PushBootstrap } from "@/components/notifications/push-bootstrap";
+import { UnreadBadgeSync } from "@/components/notifications/unread-badge-sync";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +30,7 @@ const NAV = [
   },
   { href: "/s/loads", label: "Active Contracts", icon: Package },
   { href: "/s/billing", label: "Billing & Escrow", icon: FileText },
+  { href: "/s/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function navActive(pathname: string, href: string, exact?: boolean) {
@@ -49,7 +52,13 @@ export function ShipperChrome({
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [liveUnread, setLiveUnread] = useState(unreadCount);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    setLiveUnread(unreadCount);
+  }, [unreadCount]);
+
   const initials =
     companyName
       .split(/\s+/)
@@ -165,7 +174,6 @@ export function ShipperChrome({
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <PushProvider compact />
             <button
               type="button"
               onClick={() => setNotificationsOpen(true)}
@@ -173,9 +181,9 @@ export function ShipperChrome({
               aria-label="Notifications"
             >
               <Bell className="size-[22px]" />
-              {unreadCount > 0 ? (
+              {liveUnread > 0 ? (
                 <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold leading-none text-on-primary-container">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                  {liveUnread > 9 ? "9+" : liveUnread}
                 </span>
               ) : null}
             </button>
@@ -285,7 +293,10 @@ export function ShipperChrome({
         onClose={() => setNotificationsOpen(false)}
         title="Notifications"
         description="Bids, awards, escrow, and delivery alerts"
+        onUnreadChange={setLiveUnread}
       />
+      <UnreadBadgeSync onCount={setLiveUnread} />
+      <PushBootstrap />
     </div>
   );
 }

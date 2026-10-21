@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Take & Bring Business — Complete System Guide</title>
+  <meta name="description" content="Tutorial guide to how Take & Bring Business works: shippers, carriers, super admin, escrow, and notifications." />
+  <style>
+    :root {
+      --accent: #abc629;
+      --accent-dark: #556500;
+      --accent-light: #d3ef51;
+      --surface: #f1fde5;
+      --surface-low: #ecf8df;
+      --surface-container: #e6f2da;
+      --surface-high: #e0ecd4;
+      --card: #ffffff;
+      --ink: #151e10;
+      --muted: #454836;
+      --outline: #c6c8b0;
+      --outline-strong: #767964;
+      --error: #ba1a1a;
+      --error-bg: #ffdad6;
+      --success: #2c6a3d;
+      --success-bg: #d1e8d5;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgba(21, 30, 16, 0.06), 0 8px 24px rgba(21, 30, 16, 0.06);
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "Consolas", monospace;
+      --sidebar: 280px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(211, 239, 81, 0.45), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(171, 198, 41, 0.2), transparent 50%),
+        var(--surface);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent-dark); }
+    a:hover { color: var(--ink); }
+
+    .skip {
+      position: absolute; left: -999px; top: 0;
+      background: var(--ink); color: #fff; padding: 0.5rem 1rem; z-index: 100;
+    }
+    .skip:focus { left: 1rem; top: 1rem; }
+
+    /* Top bar */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      background: rgba(241, 253, 229, 0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--outline);
+    }
+    .brand {
+      display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: inherit;
+    }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--accent-light);
+      display: grid; place-items: center;
+      font-weight: 800; font-size: 0.75rem; color: var(--accent-dark);
+      border: 1px solid var(--outline);
+    }
+    .brand strong { display: block; font-size: 0.95rem; letter-spacing: 0.02em; }
+    .brand span { display: block; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
+    .top-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      height: 2.4rem; padding: 0 0.9rem;
+      border-radius: 10px; border: 1px solid transparent;
+      font-size: 0.85rem; font-weight: 650; cursor: pointer;
+      text-decoration: none; color: inherit; background: var(--card);
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--accent-light);
+      border-color: #b7d336;
+      color: var(--ink);
+    }
+    .btn-ghost { background: transparent; border-color: var(--outline); color: var(--muted); }
+    .menu-toggle { display: none; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar) 1fr;
+      max-width: 1280px;
+      margin: 0 auto;
+      gap: 0;
+      min-height: calc(100vh - 4rem);
+    }
+
+    /* Sidebar TOC */
+    .toc {
+      position: sticky; top: 4.25rem;
+      height: calc(100vh - 4.25rem);
+      overflow-y: auto;
+      padding: 1.5rem 1rem 2rem 1.25rem;
+      border-right: 1px solid var(--outline);
+      background: rgba(255,255,255,0.35);
+    }
+    .toc h2 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.14em;
+      color: var(--muted); margin-bottom: 0.75rem; font-weight: 700;
+    }
+    .toc ol { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
+    .toc a {
+      display: block; padding: 0.45rem 0.65rem; border-radius: 8px;
+      text-decoration: none; color: var(--muted); font-size: 0.86rem; font-weight: 550;
+    }
+    .toc a:hover { background: var(--surface-high); color: var(--ink); }
+    .toc a.active {
+      background: var(--accent-light);
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .progress-wrap {
+      margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--outline);
+    }
+    .progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.75rem; color: var(--muted); margin-bottom: 0.4rem; font-weight: 600;
+    }
+    .progress-bar {
+      height: 8px; border-radius: 999px; background: var(--surface-container); overflow: hidden;
+    }
+    .progress-bar > span {
+      display: block; height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-dark));
+      transition: width 0.35s ease;
+    }
+
+    /* Main */
+    main {
+      padding: 2rem 1.5rem 4rem;
+      max-width: 820px;
+    }
+
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--outline);
+      border-radius: calc(var(--radius) + 4px);
+      padding: 1.75rem 1.5rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute; inset: 0 auto 0 0; width: 6px;
+      background: linear-gradient(180deg, var(--accent-light), var(--accent-dark));
+    }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent-dark);
+      margin-bottom: 0.6rem;
+    }
+    .eyebrow i {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 0 4px rgba(171,198,41,0.25);
+    }
+    .hero h1 {
+      font-size: clamp(1.6rem, 3vw, 2.15rem);
+      line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 0.6rem;
+    }
+    .hero p.lead {
+      color: var(--muted); font-size: 1.05rem; max-width: 40rem;
+    }
+    .hero-meta {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.1rem;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.35rem 0.7rem; border-radius: 999px;
+      background: var(--surface-container); font-size: 0.78rem; font-weight: 650;
+      color: var(--muted);
+    }
+    .chip.live { color: var(--success); background: var(--success-bg); }
+
+    section {
+      margin-bottom: 2.5rem;
+      scroll-margin-top: 5rem;
+    }
+    section > h2 {
+      font-size: 1.35rem; letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--outline);
+    }
+    section > h3 {
+      font-size: 1.05rem; margin: 1.25rem 0 0.5rem; color: var(--ink);
+    }
+    section p, section li { color: var(--muted); }
+    section p { margin-bottom: 0.85rem; }
+    section ul, section ol { padding-left: 1.2rem; margin-bottom: 0.85rem; }
+    section li { margin-bottom: 0.35rem; }
+    section strong { color: var(--ink); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.15rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .card h3 { margin: 0 0 0.4rem; font-size: 1rem; color: var(--ink); }
+    .grid-3 {
+      display: grid; gap: 0.85rem;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .grid-2 {
+      display: grid; gap: 0.85rem;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .role-card {
+      position: relative;
+      padding-top: 1.25rem;
+    }
+    .role-card .badge {
+      position: absolute; top: 0.85rem; right: 0.85rem;
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.45rem; border-radius: 6px;
+      background: var(--accent-light); color: var(--accent-dark);
+    }
+
+    /* Flow */
+    .flow {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch;
+      margin: 1rem 0 1.25rem;
+    }
+    .flow-step {
+      flex: 1 1 120px;
+      background: var(--card);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius);
+      padding: 0.85rem;
+      position: relative;
+      min-width: 110px;
+    }
+    .flow-step .n {
+      width: 1.6rem; height: 1.6rem; border-radius: 8px;
+      background: var(--accent-light); color: var(--accent-dark);
+      display: grid; place-items: center;
+      font-size: 0.75rem; font-weight: 800; margin-bottom: 0.45rem;
+    }
+    .flow-step strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+    .flow-step span { font-size: 0.75rem; color: var(--muted); }
+    .flow-arrow {
+      display: flex; align-items: center; color: var(--accent-dark);
+      font-weight: 800; font-size: 1.1rem; padding: 0 0.1rem;
+    }
+
+    /* Timeline tutorial */
+    .steps { display: flex; flex-direction: column; gap: 0; margin: 1rem 0; }
+    .step {
+      display: grid; grid-template-columns: 2rem 1fr; gap: 0.85rem;
+    }
+    .step-rail {
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .step-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(171,198,41,0.25);
+      flex-shrink: 0; margin-top: 0.35rem;
+    }
+    .step-line {
+      width: 2px; flex: 1; background: var(--outline); min-height: 1.5rem;
+    }
+    .step:last-child .step-line { display: none; }
+    .step-body {
+      background: var(--card);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius);
+      padding: 0.95rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .step-body h4 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+    .step-body p { margin: 0; font-size: 0.9rem; }
+    .who {
+      display: inline-block; margin-top: 0.55rem;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem; border-radius: 6px;
+      background: var(--surface-container); color: var(--muted);
+    }
+    .who.shipper { background: #e8f0d4; color: var(--accent-dark); }
+    .who.carrier { background: var(--success-bg); color: var(--success); }
+    .who.admin { background: #eef0e4; color: var(--outline-strong); }
+    .who.system { background: #f5f2e8; color: #6b5d3a; }
+
+    table {
+      width: 100%; border-collapse: collapse; font-size: 0.88rem;
+      background: var(--card); border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--outline); margin: 0.75rem 0 1rem;
+    }
+    th, td {
+      text-align: left; padding: 0.7rem 0.85rem;
+      border-bottom: 1px solid var(--outline); vertical-align: top;
+    }
+    th {
+      background: var(--surface-low); font-size: 0.72rem;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    }
+    tr:last-child td { border-bottom: none; }
+    code, .mono {
+      font-family: var(--mono); font-size: 0.84em;
+      background: var(--surface-low); padding: 0.1em 0.35em; border-radius: 4px;
+    }
+
+    .callout {
+      border-radius: var(--radius);
+      padding: 0.95rem 1rem;
+      margin: 1rem 0;
+      border: 1px solid var(--outline);
+      background: var(--surface-container);
+    }
+    .callout.warn {
+      background: var(--error-bg);
+      border-color: #f0b4ae;
+    }
+    .callout.ok {
+      background: var(--success-bg);
+      border-color: #9fc9ab;
+    }
+    .callout strong { display: block; margin-bottom: 0.25rem; }
+
+    .quiz {
+      background: var(--card);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius);
+      padding: 1.15rem;
+      box-shadow: var(--shadow);
+    }
+    .quiz button.opt {
+      display: block; width: 100%; text-align: left;
+      margin: 0.4rem 0; padding: 0.7rem 0.85rem;
+      border-radius: 10px; border: 1px solid var(--outline);
+      background: var(--surface-low); cursor: pointer; font: inherit; font-weight: 550;
+    }
+    .quiz button.opt:hover { border-color: var(--accent); background: var(--accent-light); }
+    .quiz button.opt.correct { background: var(--success-bg); border-color: var(--success); }
+    .quiz button.opt.wrong { background: var(--error-bg); border-color: var(--error); }
+    .quiz-feedback { margin-top: 0.75rem; font-size: 0.9rem; font-weight: 600; min-height: 1.4em; }
+
+    .screen-map {
+      display: grid; gap: 0.65rem;
+    }
+    .screen-map a {
+      display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+      padding: 0.75rem 0.9rem; border-radius: 10px;
+      background: var(--card); border: 1px solid var(--outline);
+      text-decoration: none; color: inherit; font-weight: 600; font-size: 0.9rem;
+    }
+    .screen-map a:hover { border-color: var(--accent); background: var(--surface-low); }
+    .screen-map a span { font-size: 0.78rem; font-weight: 550; color: var(--muted); font-family: var(--mono); }
+
+    footer.guide-foot {
+      margin-top: 2rem; padding-top: 1.25rem;
+      border-top: 1px solid var(--outline);
+      font-size: 0.82rem; color: var(--muted);
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc {
+        position: fixed; inset: 0 auto 0 0; width: min(86vw, 300px);
+        z-index: 60; background: var(--card);
+        transform: translateX(-105%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--shadow);
+        height: 100vh; top: 0;
+      }
+      .toc.open { transform: translateX(0); }
+      .menu-toggle { display: inline-flex; }
+      .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .flow-arrow { display: none; }
+      .backdrop {
+        display: none; position: fixed; inset: 0; background: rgba(21,30,16,0.35); z-index: 55;
+      }
+      .backdrop.show { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+
+  <header class="topbar">
+    <a class="brand" href="#top" id="top">
+      <div class="brand-mark">T&amp;B</div>
+      <div>
+        <strong>Take &amp; Bring Business</strong>
+        <span>System guide</span>
+      </div>
+    </a>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost menu-toggle" id="menuBtn" aria-label="Open contents">Contents</button>
+      <a class="btn btn-ghost" href="/login">Open app login</a>
+      <a class="btn btn-primary" href="/admin">Admin console</a>
+    </div>
+  </header>
+
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="Guide contents">
+      <h2>Contents</h2>
+      <ol id="tocList"></ol>
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Reading progress</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar"><span id="progressFill"></span></div>
+      </div>
+    </nav>
+
+    <main id="content">
+      <div class="hero">
+        <div class="eyebrow"><i></i> Tutorial · Business platform</div>
+        <h1>How Take &amp; Bring Business works</h1>
+        <p class="lead">
+          A complete, plain-language guide to the EU freight marketplace:
+          who it is for, how a load moves from publish to payment, and what
+          Super Admin sees behind the scenes.
+        </p>
+        <div class="hero-meta">
+          <span class="chip live">● Live product logic</span>
+          <span class="chip">Shipper · Carrier · Admin</span>
+          <span class="chip">Escrow · CMR · Notifications</span>
+        </div>
+      </div>
+
+      <!-- 1 -->
+      <section id="what-is-this" data-toc="What is this?">
+        <h2>1. What is this?</h2>
+        <p>
+          <strong>Take &amp; Bring Business</strong> is a digital freight marketplace for
+          <strong>industrial shippers</strong> and <strong>verified carriers</strong> across the EU.
+          It is not a classic freight broker that marks up every load. Instead:
+        </p>
+        <ul>
+          <li>A <strong>shipper</strong> publishes a load (pickup → delivery, cargo, vehicle class).</li>
+          <li><strong>Carriers</strong> bid with transparent net prices.</li>
+          <li>The shipper <strong>awards one offer</strong>.</li>
+          <li>Money is held in <strong>escrow</strong> until delivery is confirmed.</li>
+          <li>A <strong>Super Admin</strong> watches the whole platform (KYC, loads, escrow, timeline).</li>
+        </ul>
+        <div class="callout ok">
+          <strong>In one sentence</strong>
+          Shipper posts → carriers compete → shipper picks a winner → escrow locks funds → transit → deliver → payout.
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section id="who-is-it-for" data-toc="Who is it for?">
+        <h2>2. Who is it for?</h2>
+        <div class="grid-3">
+          <article class="card role-card">
+            <span class="badge">Shipper</span>
+            <h3>Industrial shippers</h3>
+            <p>Manufacturers and companies that need trucks. They publish loads, compare bids, fund escrow, and track delivery.</p>
+            <p><strong>App area:</strong> <code>/s</code></p>
+          </article>
+          <article class="card role-card">
+            <span class="badge">Carrier</span>
+            <h3>Fleet &amp; owner-operators</h3>
+            <p>Licensed carriers browse open freight, place bids, run transit/delivery, and get paid via escrow.</p>
+            <p><strong>App area:</strong> <code>/c</code></p>
+          </article>
+          <article class="card role-card">
+            <span class="badge">Admin</span>
+            <h3>Super Admin</h3>
+            <p>Platform operators. Full overview: users, KYC, every load, escrow monitor, and live event timeline.</p>
+            <p><strong>App area:</strong> <code>/admin</code></p>
+          </article>
+        </div>
+        <h3>Local demo accounts</h3>
+        <table>
+          <thead>
+            <tr><th>Role</th><th>Email</th><th>Password</th><th>Lands on</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Super Admin</td>
+              <td><code>admin@take-bring.eu</code></td>
+              <td><code>ChangeMeAdmin10!</code></td>
+              <td><code>/admin</code></td>
+            </tr>
+            <tr>
+              <td>Shipper</td>
+              <td><code>shipper@take-bring.eu</code></td>
+              <td><code>ChangeMeAdmin10!</code></td>
+              <td><code>/s</code></td>
+            </tr>
+            <tr>
+              <td>Carrier</td>
+              <td><code>carrier@take-bring.eu</code></td>
+              <td><code>ChangeMeAdmin10!</code></td>
+              <td><code>/c</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <strong>Security note</strong>
+          These are seed credentials for local / staging. Change them before any real production use.
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section id="big-picture" data-toc="Big picture flow">
+        <h2>3. Big picture flow</h2>
+        <p>Every successful shipment follows this path:</p>
+        <div class="flow" role="list">
+          <div class="flow-step" role="listitem"><div class="n">1</div><strong>Publish</strong><span>Shipper creates load</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step" role="listitem"><div class="n">2</div><strong>Bid</strong><span>Carriers offer prices</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step" role="listitem"><div class="n">3</div><strong>Award</strong><span>Shipper accepts one</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step" role="listitem"><div class="n">4</div><strong>Escrow</strong><span>Funds authorized</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step" role="listitem"><div class="n">5</div><strong>Transit</strong><span>Pickup / on the road</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step" role="listitem"><div class="n">6</div><strong>Deliver</strong><span>Escrow captured</span></div>
+        </div>
+        <p>
+          Admins receive a <strong>timeline notification</strong> at each major step
+          (load created, bid placed, award, in transit, delivered) so the platform
+          always has a complete audit trail.
+        </p>
+      </section>
+
+      <!-- 4 -->
+      <section id="step-by-step" data-toc="Step-by-step tutorial">
+        <h2>4. Step-by-step tutorial</h2>
+        <p>Walk through one load as if you were training a new teammate:</p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>Register &amp; KYC</h4>
+              <p>Users sign up as shipper or carrier. Documents go through KYC. Super Admin approves or rejects in <code>/admin/kyc</code>. Until approved, marketplace access stays limited.</p>
+              <span class="who admin">Admin decides</span>
+              <span class="who shipper">Shipper</span>
+              <span class="who carrier">Carrier</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>Shipper publishes a load</h4>
+              <p>From <code>/s/loads/new</code>: route, windows, weight, vehicle class, cargo notes. Status becomes <strong>PUBLISHED / RECEIVING_OFFERS</strong>. All active carriers get a “new load” alert. Admins see “Shipper published a load”.</p>
+              <span class="who shipper">Shipper acts</span>
+              <span class="who system">Notify carriers + admins</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>Carriers place bids</h4>
+              <p>On the open freight board <code>/c</code>, a carrier submits a price. The shipper is notified (“New offer on your load”). Admin timeline: “Carrier submitted an offer”.</p>
+              <span class="who carrier">Carrier acts</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>Shipper awards one offer</h4>
+              <p>On the load detail page, shipper accepts one bid. Load → <strong>ASSIGNED</strong>. Winner gets “Offer accepted”. Losers get “Offer not selected”. An <strong>EscrowPayment</strong> is created as <strong>AWAITING_PAYMENT</strong>.</p>
+              <span class="who shipper">Shipper acts</span>
+              <span class="who system">Create escrow</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>Fund escrow (billing)</h4>
+              <p>Shipper pays via <code>/s/billing</code> (Stripe Checkout or mock mode). Escrow moves to <strong>AUTHORIZED</strong> (funds held, not yet paid out). Carrier is told escrow is funded.</p>
+              <span class="who shipper">Shipper pays</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>In transit</h4>
+              <p>Carrier marks pickup / in transit on <code>/c/loads/[id]</code>. Load → <strong>IN_TRANSIT</strong>. Shipper and admin are notified. Carrier can also request payment attention if escrow is still awaiting.</p>
+              <span class="who carrier">Carrier acts</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-rail"><span class="step-dot"></span><span class="step-line"></span></div>
+            <div class="step-body">
+              <h4>Deliver &amp; capture</h4>
+              <p>Carrier marks <strong>DELIVERED</strong>. System captures escrow → <strong>CAPTURED</strong>. Carrier sees funds on <code>/c/earnings</code>. Admin timeline records delivery. Contract closed.</p>
+              <span class="who carrier">Carrier confirms</span>
+              <span class="who system">Capture escrow</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section id="load-statuses" data-toc="Load &amp; escrow statuses">
+        <h2>5. Load &amp; escrow statuses</h2>
+        <h3>Load lifecycle</h3>
+        <table>
+          <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>DRAFT</code></td><td>Saved but not on the market</td></tr>
+            <tr><td><code>PUBLISHED</code> / <code>RECEIVING_OFFERS</code></td><td>Visible to carriers; bids allowed</td></tr>
+            <tr><td><code>ASSIGNED</code></td><td>One carrier won; preparing pickup</td></tr>
+            <tr><td><code>IN_TRANSIT</code></td><td>Goods on the road</td></tr>
+            <tr><td><code>DELIVERED</code></td><td>Completed; escrow capture runs</td></tr>
+            <tr><td><code>CANCELLED</code> / <code>EXPIRED</code></td><td>Stopped or timed out</td></tr>
+          </tbody>
+        </table>
+        <h3>Escrow lifecycle</h3>
+        <table>
+          <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>AWAITING_PAYMENT</code></td><td>Award done; shipper must fund</td></tr>
+            <tr><td><code>AUTHORIZED</code></td><td>Money held (manual capture later)</td></tr>
+            <tr><td><code>CAPTURED</code></td><td>Released after delivery</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 6 -->
+      <section id="notifications" data-toc="Notifications &amp; badges">
+        <h2>6. Notifications &amp; badges</h2>
+        <p>The product uses <strong>one notification path</strong> (database + optional FCM push):</p>
+        <ul>
+          <li>Bell drawer in shipper / carrier / admin chrome (no separate “notifications page”).</li>
+          <li>Clicking a notification opens the <strong>exact detail URL</strong> (load, billing, earnings, admin load, etc.).</li>
+          <li>Unread count updates the <strong>bell badge</strong> and the <strong>PWA / home-screen icon badge</strong>.</li>
+          <li>Push deep links use <code>NEXT_PUBLIC_APP_URL</code> (must be your real domain on Vercel, not localhost).</li>
+        </ul>
+        <div class="callout">
+          <strong>Admin timeline</strong>
+          Super Admins get fan-out events for publish, bid, award, transit, and deliver — visible on <code>/admin</code> and <code>/admin/activity</code>.
+        </div>
+      </section>
+
+      <!-- 7 -->
+      <section id="screens" data-toc="Screen map">
+        <h2>7. Screen map (where to click)</h2>
+        <h3>Shipper <code>/s</code></h3>
+        <div class="screen-map">
+          <a href="/s"><strong>Marketplace overview</strong><span>/s</span></a>
+          <a href="/s/loads"><strong>Active contracts</strong><span>/s/loads</span></a>
+          <a href="/s/loads/new"><strong>Publish spot load</strong><span>/s/loads/new</span></a>
+          <a href="/s/billing"><strong>Billing &amp; escrow</strong><span>/s/billing</span></a>
+          <a href="/s/settings"><strong>Settings &amp; push</strong><span>/s/settings</span></a>
+        </div>
+        <h3>Carrier <code>/c</code></h3>
+        <div class="screen-map">
+          <a href="/c"><strong>Open freight board</strong><span>/c</span></a>
+          <a href="/c/loads"><strong>My bids &amp; wins</strong><span>/c/loads</span></a>
+          <a href="/c/fleet"><strong>Fleet &amp; drivers</strong><span>/c/fleet</span></a>
+          <a href="/c/earnings"><strong>Earnings &amp; escrow</strong><span>/c/earnings</span></a>
+          <a href="/c/settings"><strong>Settings &amp; push</strong><span>/c/settings</span></a>
+        </div>
+        <h3>Super Admin <code>/admin</code></h3>
+        <div class="screen-map">
+          <a href="/admin"><strong>Ops overview</strong><span>/admin</span></a>
+          <a href="/admin/activity"><strong>Live timeline</strong><span>/admin/activity</span></a>
+          <a href="/admin/loads"><strong>Global loads</strong><span>/admin/loads</span></a>
+          <a href="/admin/users"><strong>User directory</strong><span>/admin/users</span></a>
+          <a href="/admin/kyc"><strong>KYC review</strong><span>/admin/kyc</span></a>
+          <a href="/admin/escrow"><strong>Escrow monitor</strong><span>/admin/escrow</span></a>
+          <a href="/admin/settings"><strong>Settings</strong><span>/admin/settings</span></a>
+        </div>
+      </section>
+
+      <!-- 8 -->
+      <section id="practice" data-toc="Practice walkthrough">
+        <h2>8. Practice walkthrough (15 minutes)</h2>
+        <ol>
+          <li>Open three browser profiles (or windows): Admin, Shipper, Carrier.</li>
+          <li>Log in with the three seed accounts above.</li>
+          <li>As <strong>shipper</strong>: publish a load Hamburg → Rotterdam.</li>
+          <li>As <strong>admin</strong>: confirm the timeline shows “Shipper published a load”.</li>
+          <li>As <strong>carrier</strong>: open the board, place a bid.</li>
+          <li>As <strong>shipper</strong>: accept the bid → fund escrow on Billing.</li>
+          <li>As <strong>carrier</strong>: mark In transit, then Delivered.</li>
+          <li>As <strong>admin</strong>: open Escrow monitor and the load detail — status should be captured / delivered.</li>
+          <li>Click a notification in each role — you should land on the related page, not a blank feed.</li>
+        </ol>
+        <div class="callout ok">
+          <strong>Success criteria</strong>
+          You can explain the six-step flow without looking at this page, and you know which sidebar each role uses.
+        </div>
+      </section>
+
+      <!-- 9 -->
+      <section id="quiz" data-toc="Quick quiz">
+        <h2>9. Quick quiz</h2>
+        <div class="quiz" id="quiz">
+          <p style="color:var(--ink);font-weight:700;margin-bottom:0.35rem;">When is escrow money actually released to the carrier?</p>
+          <button type="button" class="opt" data-correct="false">When the shipper publishes the load</button>
+          <button type="button" class="opt" data-correct="false">When the carrier places a bid</button>
+          <button type="button" class="opt" data-correct="true">When the load is marked DELIVERED (capture)</button>
+          <button type="button" class="opt" data-correct="false">When Super Admin clicks Approve KYC</button>
+          <p class="quiz-feedback" id="quizFeedback" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <!-- 10 -->
+      <section id="glossary" data-toc="Glossary">
+        <h2>10. Glossary</h2>
+        <table>
+          <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Spot load</td><td>One-off freight posted for immediate bidding</td></tr>
+            <tr><td>FTL / LTL</td><td>Full truckload / less-than-truckload cargo styles</td></tr>
+            <tr><td>Escrow</td><td>Held payment until delivery is confirmed</td></tr>
+            <tr><td>KYC / VIES</td><td>Identity &amp; EU VAT verification before trading</td></tr>
+            <tr><td>CMR</td><td>International road transport liability framework</td></tr>
+            <tr><td>FCM</td><td>Firebase Cloud Messaging — push notifications</td></tr>
+            <tr><td>SUPER_ADMIN</td><td>Role with full platform oversight</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer class="guide-foot">
+        <p>
+          Built for the Take &amp; Bring Business app · View this guide anytime at
+          <code>/guide/</code> while the server is running.
+        </p>
+        <p style="margin-top:0.4rem;">
+          App login: <a href="/login">/login</a> ·
+          Marketing reference site:
+          <a href="https://bussines-take-bring.vercel.app/" target="_blank" rel="noopener">bussines-take-bring.vercel.app</a>
+        </p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const sections = [...document.querySelectorAll("main section[data-toc]")];
+      const tocList = document.getElementById("tocList");
+      const progressFill = document.getElementById("progressFill");
+      const progressPct = document.getElementById("progressPct");
+      const menuBtn = document.getElementById("menuBtn");
+      const toc = document.getElementById("toc");
+      const backdrop = document.getElementById("backdrop");
+
+      // Build TOC
+      sections.forEach((sec, i) => {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = "#" + sec.id;
+        a.textContent = sec.getAttribute("data-toc") || sec.querySelector("h2")?.textContent || ("Section " + (i + 1));
+        a.dataset.target = sec.id;
+        li.appendChild(a);
+        tocList.appendChild(li);
+      });
+
+      const tocLinks = [...tocList.querySelectorAll("a")];
+
+      function setActive(id) {
+        tocLinks.forEach((a) => a.classList.toggle("active", a.dataset.target === id));
+      }
+
+      // Scroll spy
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((e) => e.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+          if (visible[0]) setActive(visible[0].target.id);
+        },
+        { rootMargin: "-20% 0px -60% 0px", threshold: [0.1, 0.4, 0.7] }
+      );
+      sections.forEach((s) => observer.observe(s));
+
+      // Progress
+      function updateProgress() {
+        const doc = document.documentElement;
+        const max = doc.scrollHeight - window.innerHeight;
+        const pct = max > 0 ? Math.min(100, Math.round((window.scrollY / max) * 100)) : 0;
+        progressFill.style.width = pct + "%";
+        progressPct.textContent = pct + "%";
+      }
+      window.addEventListener("scroll", updateProgress, { passive: true });
+      updateProgress();
+
+      // Mobile menu
+      function closeMenu() {
+        toc.classList.remove("open");
+        backdrop.classList.remove("show");
+        backdrop.hidden = true;
+      }
+      function openMenu() {
+        toc.classList.add("open");
+        backdrop.hidden = false;
+        backdrop.classList.add("show");
+      }
+      menuBtn?.addEventListener("click", () => {
+        if (toc.classList.contains("open")) closeMenu();
+        else openMenu();
+      });
+      backdrop?.addEventListener("click", closeMenu);
+      tocLinks.forEach((a) => a.addEventListener("click", closeMenu));
+
+      // Quiz
+      const feedback = document.getElementById("quizFeedback");
+      document.querySelectorAll("#quiz .opt").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const correct = btn.getAttribute("data-correct") === "true";
+          document.querySelectorAll("#quiz .opt").forEach((b) => {
+            b.disabled = true;
+            if (b.getAttribute("data-correct") === "true") b.classList.add("correct");
+          });
+          if (!correct) btn.classList.add("wrong");
+          feedback.textContent = correct
+            ? "Correct — escrow is captured only after delivery confirmation."
+            : "Not quite — funds stay held until DELIVERED triggers capture.";
+          feedback.style.color = correct ? "var(--success)" : "var(--error)";
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

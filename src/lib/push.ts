@@ -8,6 +8,7 @@ type PushPayload = {
   type: string;
   href?: string;
   notificationId?: string;
+  unreadCount?: number;
   data?: Record<string, string>;
 };
 
@@ -42,6 +43,9 @@ export async function sendFcmToUser(userId: string, payload: PushPayload) {
     tag: payload.notificationId || payload.type,
     ...(payload.notificationId
       ? { notificationId: payload.notificationId }
+      : {}),
+    ...(typeof payload.unreadCount === "number"
+      ? { unreadCount: String(payload.unreadCount) }
       : {}),
     ...(payload.data || {}),
   };

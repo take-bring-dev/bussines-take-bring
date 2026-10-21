@@ -24,6 +24,11 @@ const STATUS_CLASS: Record<string, string> = {
   INVITED: "bg-[#ECF8DF] border-[#767964] text-[#454836]",
   MAINTENANCE: "bg-[#ECF8DF] border-[#767964] text-[#454836]",
   INACTIVE: "bg-[#ECF8DF] border-[#767964] text-[#454836]",
+  AWAITING_PAYMENT: "bg-[#ECF8DF] border-[#767964] text-[#454836]",
+  AUTHORIZED: "bg-[#E6F2DA] border-[#556500] text-[#556500]",
+  CAPTURED: "bg-[#D1E8D5] border-[#2C6A3D] text-[#2C6A3D]",
+  RELEASED: "bg-[#D1E8D5] border-[#2C6A3D] text-[#2C6A3D]",
+  REFUNDED: "bg-[#FFDAD6] border-[#BA1A1A] text-[#BA1A1A]",
 };
 
 const PULSE = new Set(["RECEIVING_OFFERS", "PUBLISHED"]);

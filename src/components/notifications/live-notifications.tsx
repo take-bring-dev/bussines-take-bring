@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LiveIndicator } from "@/components/realtime/live-indicator";
 import { useLivePoll } from "@/hooks/use-live-poll";
+import { setAppBadge } from "@/lib/app-badge";
 import { cn } from "@/lib/utils";
 
 type Notification = {
@@ -12,22 +15,67 @@ type Notification = {
   type: string;
   readAt: string | null;
   createdAt: string;
+  href: string | null;
 };
 
-export function LiveNotifications() {
+export function LiveNotifications({
+  onNavigate,
+  onUnreadChange,
+}: {
+  onNavigate?: () => void;
+  onUnreadChange?: (count: number) => void;
+}) {
+  const router = useRouter();
   const { data, updatedAt, refresh, loading } = useLivePoll<{
     notifications: Notification[];
+    unreadCount: number;
   }>("/api/notifications", { intervalMs: 5000 });
   const items = data?.notifications ?? [];
-  const unread = items.filter((n) => !n.readAt).length;
+  const unread = data?.unreadCount ?? items.filter((n) => !n.readAt).length;
+
+  useEffect(() => {
+    void setAppBadge(unread);
+    onUnreadChange?.(unread);
+  }, [unread, onUnreadChange]);
 
   async function markAll() {
-    await fetch("/api/notifications", {
+    const res = await fetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ markAllRead: true }),
     });
+    const json = (await res.json().catch(() => ({}))) as { unreadCount?: number };
+    void setAppBadge(json.unreadCount ?? 0);
+    onUnreadChange?.(json.unreadCount ?? 0);
     await refresh();
+  }
+
+  async function openNotification(n: Notification) {
+    if (!n.readAt) {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: n.id }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        unreadCount?: number;
+      };
+      if (typeof json.unreadCount === "number") {
+        void setAppBadge(json.unreadCount);
+        onUnreadChange?.(json.unreadCount);
+      }
+    }
+
+    onNavigate?.();
+
+    const href = n.href;
+    if (href) {
+      if (href.startsWith("http")) {
+        window.location.href = href;
+      } else {
+        router.push(href);
+      }
+    }
   }
 
   return (
@@ -37,13 +85,15 @@ export function LiveNotifications() {
           <LiveIndicator updatedAt={updatedAt} />
           {unread > 0 ? (
             <span className="rounded-full bg-error-container px-2 py-0.5 text-[11px] font-bold text-destructive">
-              {unread} unread
+              {unread} new
             </span>
           ) : null}
         </div>
-        <Button variant="outline" size="sm" onClick={() => void markAll()}>
-          Mark all read
-        </Button>
+        {unread > 0 ? (
+          <Button variant="outline" size="sm" onClick={() => void markAll()}>
+            Clear all
+          </Button>
+        ) : null}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -57,26 +107,23 @@ export function LiveNotifications() {
         ) : null}
         <div className="divide-y divide-border">
           {items.map((n) => (
-            <div
+            <button
               key={n.id}
+              type="button"
+              onClick={() => void openNotification(n)}
               className={cn(
-                "px-4 py-3",
+                "block w-full px-4 py-3 text-left transition-colors hover:bg-surface-high",
                 !n.readAt && "border-l-2 border-l-primary-container bg-surface-low/60",
               )}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold">{n.title}</p>
-                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {n.type}
-                </span>
-              </div>
+              <p className="text-sm font-semibold">{n.title}</p>
               {n.body ? (
                 <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p>
               ) : null}
               <p className="mt-1 text-[11px] text-muted-foreground">
                 {new Date(n.createdAt).toLocaleString("de-DE")}
               </p>
-            </div>
+            </button>
           ))}
         </div>
       </div>

@@ -2,19 +2,41 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
 
+function hrefFromPayload(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const href = (payload as Record<string, unknown>).href;
+  return typeof href === "string" && href.length ? href : null;
+}
+
 export async function GET() {
   const auth = await requireUser();
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   }
 
-  const notifications = await prisma.notification.findMany({
-    where: { userId: auth.user.id },
-    orderBy: { createdAt: "desc" },
-    take: 40,
-  });
+  const [notifications, unreadCount] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: auth.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.notification.count({
+      where: { userId: auth.user.id, readAt: null },
+    }),
+  ]);
 
-  return NextResponse.json({ notifications });
+  return NextResponse.json({
+    unreadCount,
+    notifications: notifications.map((n) => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      type: n.type,
+      readAt: n.readAt,
+      createdAt: n.createdAt,
+      href: hrefFromPayload(n.payload),
+    })),
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -29,7 +51,7 @@ export async function PATCH(request: Request) {
       where: { userId: auth.user.id, readAt: null },
       data: { readAt: new Date() },
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, unreadCount: 0 });
   }
 
   if (body.id) {
@@ -39,5 +61,9 @@ export async function PATCH(request: Request) {
     });
   }
 
-  return NextResponse.json({ ok: true });
+  const unreadCount = await prisma.notification.count({
+    where: { userId: auth.user.id, readAt: null },
+  });
+
+  return NextResponse.json({ ok: true, unreadCount });
 }

@@ -12,18 +12,36 @@ export type NotifyInput = {
   href?: string;
 };
 
+function mergePayload(
+  payload: Prisma.InputJsonValue | undefined,
+  href?: string,
+): Prisma.InputJsonValue | undefined {
+  const base =
+    payload && typeof payload === "object" && payload !== null && !Array.isArray(payload)
+      ? { ...(payload as Record<string, unknown>) }
+      : {};
+  if (href) base.href = href;
+  return Object.keys(base).length ? (base as Prisma.InputJsonValue) : payload;
+}
+
 /**
  * One DB notification + one FCM fan-out per user. Never call create + push separately.
  */
 export async function notifyUser(input: NotifyInput) {
+  const payload = mergePayload(input.payload, input.href);
+
   const row = await prisma.notification.create({
     data: {
       userId: input.userId,
       type: input.type,
       title: input.title,
       body: input.body ?? null,
-      payload: input.payload ?? undefined,
+      payload: payload ?? undefined,
     },
+  });
+
+  const unreadCount = await prisma.notification.count({
+    where: { userId: input.userId, readAt: null },
   });
 
   await sendFcmToUser(input.userId, {
@@ -32,10 +50,11 @@ export async function notifyUser(input: NotifyInput) {
     type: input.type,
     href: input.href,
     notificationId: row.id,
+    unreadCount,
     data:
-      input.payload && typeof input.payload === "object" && input.payload !== null
+      payload && typeof payload === "object" && payload !== null
         ? Object.fromEntries(
-            Object.entries(input.payload as Record<string, unknown>)
+            Object.entries(payload as Record<string, unknown>)
               .filter(([, v]) => v != null)
               .map(([k, v]) => [k, String(v)]),
           )
@@ -55,4 +74,20 @@ export async function notifyUsers(
     results.push(await notifyUser({ ...input, userId }));
   }
   return results;
+}
+
+/** Fan-out platform timeline alerts to every active SUPER_ADMIN. */
+export async function notifyAdmins(input: Omit<NotifyInput, "userId">) {
+  const admins = await prisma.user.findMany({
+    where: { role: "SUPER_ADMIN", status: "ACTIVE" },
+    select: { id: true },
+  });
+  if (!admins.length) return [];
+  return notifyUsers(
+    admins.map((a) => a.id),
+    {
+      ...input,
+      href: input.href ?? "/admin/activity",
+    },
+  );
 }

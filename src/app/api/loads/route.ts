@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { VehicleClass } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
-import { notifyUsers } from "@/lib/notify";
+import { notifyAdmins, notifyUsers } from "@/lib/notify";
 
 const VEHICLE_MAP: Record<string, VehicleClass> = {
   car: "CAR",
@@ -152,6 +152,9 @@ export async function POST(request: Request) {
     );
 
     if (publish) {
+      const shipperLabel = auth.user.name || auth.user.email;
+      const routeLabel = `${load.pickupCity} → ${load.deliveryCity} · ${load.weightKg} kg`;
+
       const carriers = await prisma.user.findMany({
         where: {
           status: "ACTIVE",
@@ -165,12 +168,24 @@ export async function POST(request: Request) {
           {
             type: "load.published",
             title: "New load available",
-            body: `${load.pickupCity} → ${load.deliveryCity} · ${load.weightKg} kg`,
+            body: routeLabel,
             payload: { loadId: load.id },
             href: "/c",
           },
         );
       }
+
+      await notifyAdmins({
+        type: "admin.load.created",
+        title: "Shipper published a load",
+        body: `${shipperLabel} created ${routeLabel}`,
+        payload: {
+          loadId: load.id,
+          shipperId: auth.user.id,
+          shipperName: shipperLabel,
+        },
+        href: `/admin/loads/${load.id}`,
+      });
     }
 
     return NextResponse.json({ ok: true, load });

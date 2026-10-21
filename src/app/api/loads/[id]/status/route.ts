@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { captureEscrow } from "@/lib/escrow";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
-import { notifyUser } from "@/lib/notify";
+import { notifyAdmins, notifyUser } from "@/lib/notify";
 import type { LoadStatus } from "@prisma/client";
 
 const CARRIER_ROLES = [
@@ -109,6 +109,14 @@ export async function POST(
     payload: { loadId, status: nextStatus },
     href:
       nextStatus === "DELIVERED" ? "/s/billing" : `/s/loads/${loadId}`,
+  });
+
+  await notifyAdmins({
+    type: nextStatus === "IN_TRANSIT" ? "admin.load.in_transit" : "admin.load.delivered",
+    title,
+    body: `${load.pickupCity} → ${load.deliveryCity} · ${bodyText}`,
+    payload: { loadId, status: nextStatus },
+    href: `/admin/loads/${loadId}`,
   });
 
   let escrowStatus: string | null = null;

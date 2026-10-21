@@ -23,6 +23,27 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+function resolveHref(raw) {
+  if (!raw) return self.location.origin + "/";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  const path = raw.startsWith("/") ? raw : "/" + raw;
+  return self.location.origin + path;
+}
+
+function updateBadge(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return;
+  try {
+    if (n > 0 && self.navigator && self.navigator.setAppBadge) {
+      self.navigator.setAppBadge(n);
+    } else if (n <= 0 && self.navigator && self.navigator.clearAppBadge) {
+      self.navigator.clearAppBadge();
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 messaging.onBackgroundMessage((payload) => {
   const title =
     payload.data?.title || payload.notification?.title || "Take & Bring";
@@ -33,6 +54,8 @@ messaging.onBackgroundMessage((payload) => {
     payload.data?.notificationId ||
     payload.data?.type ||
     "take-bring";
+
+  updateBadge(payload.data?.unreadCount);
 
   // Single show — tag replaces prior notification of same event
   return self.registration.showNotification(title, {
@@ -52,7 +75,7 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const href = event.notification.data?.href || "/";
+  const href = resolveHref(event.notification.data?.href);
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const client of list) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
-import { notifyUser } from "@/lib/notify";
+import { notifyAdmins, notifyUser } from "@/lib/notify";
 
 export async function POST(
   request: Request,
@@ -68,13 +68,29 @@ export async function POST(
     return created;
   });
 
+  const carrierLabel = auth.user.name || auth.user.email || "A carrier";
+  const offerBody = `${carrierLabel} offered €${price.toFixed(2)}`;
+
   await notifyUser({
     userId: load.shipperId,
     type: "application.created",
     title: "New offer on your load",
-    body: `${auth.user.name || "A carrier"} offered €${price.toFixed(2)}`,
+    body: offerBody,
     payload: { loadId, applicationId: application.id },
     href: `/s/loads/${loadId}`,
+  });
+
+  await notifyAdmins({
+    type: "admin.application.created",
+    title: "Carrier submitted an offer",
+    body: `${carrierLabel} bid €${price.toFixed(2)} on ${load.pickupCity} → ${load.deliveryCity}`,
+    payload: {
+      loadId,
+      applicationId: application.id,
+      carrierId: auth.user.id,
+      carrierName: carrierLabel,
+    },
+    href: `/admin/loads/${loadId}`,
   });
 
   return NextResponse.json({ ok: true, application });
