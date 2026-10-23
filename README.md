@@ -29,6 +29,12 @@ npm run dev             # http://localhost:3001
 npm run build
 ```
 
+## Fleet
+
+Install as PWA (Add to Home Screen).  
+Fleet admins manage trucks/drivers on `/c/fleet` (assign driver ↔ truck).  
+**Live GPS tracking is temporarily disabled.**
+
 ## Security (baseline)
 
 - `noindex` robots + headers

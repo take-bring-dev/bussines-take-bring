@@ -45,6 +45,33 @@ export async function POST(
         })
       : null;
 
+  let vehicleId: string | null = body.vehicleId ? String(body.vehicleId) : null;
+  let driverId: string | null = body.driverId ? String(body.driverId) : null;
+
+  if (company && (vehicleId || driverId)) {
+    if (vehicleId) {
+      const vehicle = await prisma.vehicle.findFirst({
+        where: { id: vehicleId, companyId: company.id },
+      });
+      if (!vehicle) {
+        return NextResponse.json({ error: "Invalid vehicle." }, { status: 400 });
+      }
+    }
+    if (driverId) {
+      const driver = await prisma.driver.findFirst({
+        where: { id: driverId, companyId: company.id, status: { not: "SUSPENDED" } },
+      });
+      if (!driver) {
+        return NextResponse.json({ error: "Invalid driver." }, { status: 400 });
+      }
+      // Prefer driver's assigned truck when not explicitly set
+      if (!vehicleId && driver.vehicleId) vehicleId = driver.vehicleId;
+    }
+  } else {
+    vehicleId = null;
+    driverId = null;
+  }
+
   const application = await prisma.$transaction(async (tx) => {
     const created = await tx.loadApplication.create({
       data: {
@@ -55,6 +82,8 @@ export async function POST(
         companyId: company?.id ?? null,
         proposedPrice: price,
         message: body.message?.trim() || null,
+        vehicleId,
+        driverId,
       },
     });
 

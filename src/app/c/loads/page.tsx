@@ -21,8 +21,27 @@ export default async function CarrierLoadsPage() {
     redirect("/login");
   }
 
+  const driver =
+    user.role === "CARRIER_DRIVER"
+      ? await prisma.driver.findUnique({ where: { userId: user.id } })
+      : null;
+  const company =
+    user.role === "CARRIER_COMPANY_ADMIN"
+      ? await prisma.carrierCompanyProfile.findUnique({
+          where: { adminUserId: user.id },
+        })
+      : null;
+
   const applications = await prisma.loadApplication.findMany({
-    where: { applicantUserId: user.id },
+    where: {
+      OR: [
+        { applicantUserId: user.id },
+        ...(driver ? [{ driverId: driver.id, status: "ACCEPTED" as const }] : []),
+        ...(company
+          ? [{ companyId: company.id, status: "ACCEPTED" as const }]
+          : []),
+      ],
+    },
     orderBy: { updatedAt: "desc" },
     take: 100,
     include: {

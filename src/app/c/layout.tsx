@@ -21,13 +21,14 @@ export default async function CarrierLayout({
     redirect("/login");
   }
 
-  const [company, individual, unreadCount] = await Promise.all([
+  const [company, individual, driver, unreadCount] = await Promise.all([
     prisma.carrierCompanyProfile.findUnique({
       where: { adminUserId: user.id },
     }),
     prisma.carrierIndividualProfile.findUnique({
       where: { userId: user.id },
     }),
+    prisma.driver.findUnique({ where: { userId: user.id } }),
     prisma.notification.count({
       where: { userId: user.id, readAt: null },
     }),
@@ -36,6 +37,7 @@ export default async function CarrierLayout({
   const companyName =
     company?.companyName?.trim() ||
     individual?.fullName?.trim() ||
+    driver?.fullName?.trim() ||
     user.name ||
     user.email.split("@")[0] ||
     "Carrier";
@@ -45,6 +47,7 @@ export default async function CarrierLayout({
       companyName={companyName}
       vatId={company?.vatId || individual?.vatId}
       unreadCount={unreadCount}
+      role={user.role}
     >
       {children}
     </CarrierChrome>

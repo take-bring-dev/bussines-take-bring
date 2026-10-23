@@ -27,11 +27,42 @@ const NAV = [
     label: "Open Freight Board",
     exact: true,
     icon: LayoutDashboard,
+    roles: ["CARRIER_INDIVIDUAL", "CARRIER_COMPANY_ADMIN", "SUPER_ADMIN"],
   },
-  { href: "/c/loads", label: "My Bids & Wins", icon: Package },
-  { href: "/c/fleet", label: "Fleet & Drivers", icon: Truck },
-  { href: "/c/earnings", label: "Earnings & Escrow", icon: Wallet },
-  { href: "/c/settings", label: "Settings", icon: Settings },
+  {
+    href: "/c/loads",
+    label: "My Bids & Wins",
+    icon: Package,
+    roles: [
+      "CARRIER_INDIVIDUAL",
+      "CARRIER_COMPANY_ADMIN",
+      "CARRIER_DRIVER",
+      "SUPER_ADMIN",
+    ],
+  },
+  {
+    href: "/c/fleet",
+    label: "Fleet & Drivers",
+    icon: Truck,
+    roles: ["CARRIER_COMPANY_ADMIN", "CARRIER_INDIVIDUAL", "SUPER_ADMIN"],
+  },
+  {
+    href: "/c/earnings",
+    label: "Earnings & Escrow",
+    icon: Wallet,
+    roles: ["CARRIER_INDIVIDUAL", "CARRIER_COMPANY_ADMIN", "SUPER_ADMIN"],
+  },
+  {
+    href: "/c/settings",
+    label: "Settings",
+    icon: Settings,
+    roles: [
+      "CARRIER_INDIVIDUAL",
+      "CARRIER_COMPANY_ADMIN",
+      "CARRIER_DRIVER",
+      "SUPER_ADMIN",
+    ],
+  },
 ] as const;
 
 function navActive(pathname: string, href: string, exact?: boolean) {
@@ -44,17 +75,22 @@ export function CarrierChrome({
   companyName,
   vatId,
   unreadCount = 0,
+  role = "CARRIER_COMPANY_ADMIN",
 }: {
   children: React.ReactNode;
   companyName: string;
   vatId?: string | null;
   unreadCount?: number;
+  role?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [liveUnread, setLiveUnread] = useState(unreadCount);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const nav = NAV.filter((item) =>
+    (item.roles as readonly string[]).includes(role),
+  );
 
   useEffect(() => {
     setLiveUnread(unreadCount);
@@ -98,7 +134,7 @@ export function CarrierChrome({
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-hidden px-3 py-3">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = navActive(
               pathname,
               item.href,
@@ -236,7 +272,7 @@ export function CarrierChrome({
               </button>
             </div>
             <nav className="flex flex-1 flex-col gap-1 overflow-hidden p-3">
-              {NAV.map((item) => {
+              {nav.map((item) => {
                 const active = navActive(
                   pathname,
                   item.href,

@@ -143,6 +143,8 @@ model User {
   escrowPayments       EscrowPayment[]           @relation("ShipperEscrow")
   auditLogs            AuditLog[]
   stripeCustomerId     String?                   @map("stripe_customer_id")
+  locationLatest       DriverLocationLatest?
+  locationPoints       DriverLocationPoint[]
 
   @@map("users")
 }
@@ -291,16 +293,21 @@ model Vehicle {
 }
 
 model Driver {
-  id           String       @id @default(cuid())
-  companyId    String       @map("company_id")
-  userId       String?      @unique @map("user_id")
-  fullName     String       @map("full_name")
-  phone        String?
-  licenceClass String?      @map("licence_class")
-  vehicleId    String?      @map("vehicle_id")
-  status       DriverStatus @default(INVITED)
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(cuid())
+  companyId       String       @map("company_id")
+  userId          String?      @unique @map("user_id")
+  fullName        String       @map("full_name")
+  email           String?      @map("email")
+  phone           String?
+  licenceClass    String?      @map("licence_class")
+  vehicleId       String?      @map("vehicle_id")
+  status          DriverStatus @default(INVITED)
+  trackingEnabled Boolean      @default(true) @map("tracking_enabled")
+  /// Secret for Traccar Client / GPS Logger HTTP push (no cookies). Rotate anytime.
+  ingestToken     String?      @unique @map("ingest_token")
+  ingestTokenAt   DateTime?    @map("ingest_token_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   company      CarrierCompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -308,7 +315,50 @@ model Driver {
   applications LoadApplication[]
 
   @@index([companyId])
+  @@index([vehicleId])
   @@map("drivers")
+}
+
+/// Always-on latest position for a carrier user (driver or individual).
+model DriverLocationLatest {
+  id         String   @id @default(cuid())
+  userId     String   @unique @map("user_id")
+  lat        Float
+  lng        Float
+  accuracyM  Float?   @map("accuracy_m")
+  speedMps   Float?   @map("speed_mps")
+  headingDeg Float?   @map("heading_deg")
+  altitudeM  Float?   @map("altitude_m")
+  source     String   @default("foreground")
+  recordedAt DateTime @map("recorded_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([recordedAt])
+  @@map("driver_location_latest")
+}
+
+/// Location history (sampled). Always-on — not limited to active loads.
+model DriverLocationPoint {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  loadId     String?  @map("load_id")
+  lat        Float
+  lng        Float
+  accuracyM  Float?   @map("accuracy_m")
+  speedMps   Float?   @map("speed_mps")
+  headingDeg Float?   @map("heading_deg")
+  altitudeM  Float?   @map("altitude_m")
+  source     String   @default("foreground")
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  load Load? @relation(fields: [loadId], references: [id], onDelete: SetNull)
+
+  @@index([userId, recordedAt])
+  @@index([loadId, recordedAt])
+  @@map("driver_location_points")
 }
 
 model Load {
@@ -358,9 +408,10 @@ model Load {
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
 
-  shipper      User              @relation("ShipperLoads", fields: [shipperId], references: [id], onDelete: Cascade)
-  applications LoadApplication[]
-  escrow       EscrowPayment?
+  shipper        User                  @relation("ShipperLoads", fields: [shipperId], references: [id], onDelete: Cascade)
+  applications   LoadApplication[]
+  escrow         EscrowPayment?
+  locationPoints DriverLocationPoint[]
 
   @@index([shipperId])
   @@index([status])

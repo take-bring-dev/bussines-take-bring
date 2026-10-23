@@ -44,13 +44,29 @@ export async function POST(
   }
 
   const rule = TRANSITIONS[nextStatus];
+
+  const driver =
+    auth.user.role === "CARRIER_DRIVER"
+      ? await prisma.driver.findUnique({ where: { userId: auth.user.id } })
+      : null;
+  const company =
+    auth.user.role === "CARRIER_COMPANY_ADMIN"
+      ? await prisma.carrierCompanyProfile.findUnique({
+          where: { adminUserId: auth.user.id },
+        })
+      : null;
+
   const load = await prisma.load.findUnique({
     where: { id: loadId },
     include: {
       applications: {
         where: {
-          applicantUserId: auth.user.id,
           status: "ACCEPTED",
+          OR: [
+            { applicantUserId: auth.user.id },
+            ...(driver ? [{ driverId: driver.id }] : []),
+            ...(company ? [{ companyId: company.id }] : []),
+          ],
         },
         take: 1,
       },

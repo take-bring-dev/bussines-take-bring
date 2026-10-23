@@ -57,7 +57,6 @@ messaging.onBackgroundMessage((payload) => {
 
   updateBadge(payload.data?.unreadCount);
 
-  // Single show — tag replaces prior notification of same event
   return self.registration.showNotification(title, {
     body,
     icon: "/images/icon-192.png",
@@ -68,7 +67,6 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-// Required for Chrome “Add to Home Screen” / installability
 self.addEventListener("fetch", (event) => {
   event.respondWith(fetch(event.request));
 });

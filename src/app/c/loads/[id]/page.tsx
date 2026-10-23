@@ -10,10 +10,12 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
+import { AssignFleetPanel } from "@/components/loads/assign-fleet-panel";
 import { CarrierLoadStatusActions } from "@/components/loads/carrier-load-status-actions";
 import { RequestPaymentButton } from "@/components/loads/request-payment-button";
 import { getSessionUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { getCompanyForAdmin, getDriverForUser } from "@/lib/fleet";
 import { formatMoney, formatStatus, formatWindow } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -45,22 +47,39 @@ export default async function CarrierBidDetailPage({
 
   const { id } = await params;
 
+  const [company, driverRow] = await Promise.all([
+    user.role === "CARRIER_COMPANY_ADMIN"
+      ? getCompanyForAdmin(user.id)
+      : null,
+    user.role === "CARRIER_DRIVER" ? getDriverForUser(user.id) : null,
+  ]);
+
   const load = await prisma.load.findUnique({
     where: { id },
     include: {
       shipper: { select: { name: true, email: true, phone: true } },
       applications: {
-        where: { applicantUserId: user.id },
+        where: {
+          OR: [
+            { applicantUserId: user.id },
+            ...(company ? [{ companyId: company.id, status: "ACCEPTED" as const }] : []),
+            ...(driverRow
+              ? [{ driverId: driverRow.id, status: "ACCEPTED" as const }]
+              : []),
+          ],
+        },
         include: {
           vehicle: {
             select: {
+              id: true,
               plateNumber: true,
               label: true,
               vehicleClass: true,
             },
           },
-          driver: { select: { fullName: true } },
+          driver: { select: { id: true, fullName: true } },
         },
+        orderBy: { createdAt: "desc" },
         take: 1,
       },
     },
@@ -253,6 +272,13 @@ export default async function CarrierBidDetailPage({
                     <CheckCircle2 className="size-4" />
                     Contract awarded — mark pickup when cargo is loaded
                   </div>
+                ) : null}
+                {user.role === "CARRIER_COMPANY_ADMIN" ? (
+                  <AssignFleetPanel
+                    loadId={load.id}
+                    initialVehicleId={bid.vehicle?.id}
+                    initialDriverId={bid.driver?.id}
+                  />
                 ) : null}
                 <CarrierLoadStatusActions
                   loadId={load.id}

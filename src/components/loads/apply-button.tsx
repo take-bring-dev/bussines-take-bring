@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gavel } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+
+type FleetOption = {
+  id: string;
+  label: string;
+  plateNumber?: string;
+  vehicleId?: string | null;
+};
 
 export function ApplyButton({
   loadId,
@@ -34,8 +41,54 @@ export function ApplyButton({
     defaultPrice != null ? String(defaultPrice) : "",
   );
   const [message, setMessage] = useState("");
+  const [vehicleId, setVehicleId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [vehicles, setVehicles] = useState<FleetOption[]>([]);
+  const [drivers, setDrivers] = useState<FleetOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const [vRes, dRes] = await Promise.all([
+        fetch("/api/fleet/vehicles"),
+        fetch("/api/fleet/drivers"),
+      ]);
+      if (vRes.ok) {
+        const j = await vRes.json();
+        setVehicles(
+          (j.vehicles || []).map(
+            (v: { id: string; label: string; plateNumber: string }) => ({
+              id: v.id,
+              label: `${v.label} (${v.plateNumber})`,
+              plateNumber: v.plateNumber,
+            }),
+          ),
+        );
+      }
+      if (dRes.ok) {
+        const j = await dRes.json();
+        setDrivers(
+          (j.drivers || [])
+            .filter((d: { status: string }) => d.status !== "SUSPENDED")
+            .map(
+              (d: {
+                id: string;
+                fullName: string;
+                vehicleId: string | null;
+              }) => ({
+                id: d.id,
+                label: d.fullName,
+                vehicleId: d.vehicleId,
+              }),
+            ),
+        );
+      }
+    })();
+  }, [open]);
+
+  const showFleetAssign = vehicles.length > 0 || drivers.length > 0;
 
   async function apply() {
     setError(null);
@@ -47,6 +100,8 @@ export function ApplyButton({
         body: JSON.stringify({
           proposedPrice: Number(price),
           message: message.trim() || undefined,
+          vehicleId: vehicleId || undefined,
+          driverId: driverId || undefined,
         }),
       });
       const data = await res.json();
@@ -127,6 +182,47 @@ export function ApplyButton({
               className="h-12 text-base font-bold"
             />
           </div>
+          {showFleetAssign ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor={`driver-${loadId}`}>Driver (optional)</Label>
+                <select
+                  id={`driver-${loadId}`}
+                  className="h-12 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  value={driverId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setDriverId(id);
+                    const d = drivers.find((x) => x.id === id);
+                    if (d?.vehicleId) setVehicleId(d.vehicleId);
+                  }}
+                >
+                  <option value="">Assign later</option>
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`vehicle-${loadId}`}>Truck (optional)</Label>
+                <select
+                  id={`vehicle-${loadId}`}
+                  className="h-12 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  value={vehicleId}
+                  onChange={(e) => setVehicleId(e.target.value)}
+                >
+                  <option value="">Assign later</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor={`msg-${loadId}`}>Message (optional)</Label>
             <Input
