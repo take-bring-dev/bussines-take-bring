@@ -63,9 +63,7 @@ export default async function CarrierBidDetailPage({
           OR: [
             { applicantUserId: user.id },
             ...(company ? [{ companyId: company.id, status: "ACCEPTED" as const }] : []),
-            ...(driverRow
-              ? [{ driverId: driverRow.id, status: "ACCEPTED" as const }]
-              : []),
+            ...(driverRow ? [{ driverId: driverRow.id }] : []),
           ],
         },
         include: {

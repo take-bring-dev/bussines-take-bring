@@ -36,7 +36,8 @@ export default async function CarrierLoadsPage() {
     where: {
       OR: [
         { applicantUserId: user.id },
-        ...(driver ? [{ driverId: driver.id, status: "ACCEPTED" as const }] : []),
+        // Driver sees bids placed for them + wins assigned to them
+        ...(driver ? [{ driverId: driver.id }] : []),
         ...(company
           ? [{ companyId: company.id, status: "ACCEPTED" as const }]
           : []),

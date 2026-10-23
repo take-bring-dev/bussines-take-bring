@@ -158,7 +158,13 @@ export async function POST(request: Request) {
       const carriers = await prisma.user.findMany({
         where: {
           status: "ACTIVE",
-          role: { in: ["CARRIER_INDIVIDUAL", "CARRIER_COMPANY_ADMIN"] },
+          role: {
+            in: [
+              "CARRIER_INDIVIDUAL",
+              "CARRIER_COMPANY_ADMIN",
+              "CARRIER_DRIVER",
+            ],
+          },
         },
         select: { id: true },
       });

@@ -4,6 +4,82 @@ import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
 import { getCompanyForAdmin } from "@/lib/fleet";
 
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireRoles("CARRIER_COMPANY_ADMIN", "SUPER_ADMIN");
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+  }
+
+  const company = await getCompanyForAdmin(auth.user.id);
+  if (!company && auth.user.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ error: "Company profile required." }, { status: 400 });
+  }
+
+  const { id } = await context.params;
+  const driver = await prisma.driver.findFirst({
+    where: {
+      id,
+      ...(company ? { companyId: company.id } : {}),
+    },
+    include: {
+      vehicle: true,
+      user: { select: { id: true, email: true, status: true } },
+    },
+  });
+  if (!driver) {
+    return NextResponse.json({ error: "Driver not found." }, { status: 404 });
+  }
+
+  const applications = await prisma.loadApplication.findMany({
+    where: { driverId: driver.id },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+    include: {
+      load: {
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          pickupCity: true,
+          pickupCountry: true,
+          deliveryCity: true,
+          deliveryCountry: true,
+          weightKg: true,
+          pickupWindowStart: true,
+          pickupWindowEnd: true,
+        },
+      },
+    },
+  });
+
+  return NextResponse.json({
+    driver,
+    applications: applications.map((a) => ({
+      id: a.id,
+      status: a.status,
+      proposedPrice: Number(a.proposedPrice),
+      currency: a.currency,
+      createdAt: a.createdAt.toISOString(),
+      updatedAt: a.updatedAt.toISOString(),
+      load: {
+        id: a.load.id,
+        reference: a.load.reference,
+        status: a.load.status,
+        pickupCity: a.load.pickupCity,
+        pickupCountry: a.load.pickupCountry,
+        deliveryCity: a.load.deliveryCity,
+        deliveryCountry: a.load.deliveryCountry,
+        weightKg: a.load.weightKg,
+        pickupWindowStart: a.load.pickupWindowStart.toISOString(),
+        pickupWindowEnd: a.load.pickupWindowEnd.toISOString(),
+      },
+    })),
+  });
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },

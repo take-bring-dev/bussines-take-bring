@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
 import { getCompanyForAdmin } from "@/lib/fleet";
+import { notifyDriverById } from "@/lib/notify";
 
 /** Assign / reassign vehicle + driver on the awarded application. */
 export async function POST(
@@ -29,6 +30,11 @@ export async function POST(
       status: "ACCEPTED",
       companyId: company.id,
     },
+    include: {
+      load: {
+        select: { pickupCity: true, deliveryCity: true },
+      },
+    },
   });
   if (!application) {
     return NextResponse.json(
@@ -36,6 +42,8 @@ export async function POST(
       { status: 404 },
     );
   }
+
+  const previousDriverId = application.driverId;
 
   if (driverId) {
     const driver = await prisma.driver.findFirst({
@@ -60,6 +68,17 @@ export async function POST(
     data: { vehicleId, driverId },
     include: { vehicle: true, driver: true },
   });
+
+  if (driverId && driverId !== previousDriverId) {
+    const route = `${application.load.pickupCity} → ${application.load.deliveryCity}`;
+    await notifyDriverById(driverId, {
+      type: "application.driver_assigned",
+      title: "You were assigned a load",
+      body: `Your company assigned you to ${route}.`,
+      payload: { loadId, applicationId: application.id },
+      href: `/c/loads/${loadId}`,
+    });
+  }
 
   return NextResponse.json({ ok: true, application: updated });
 }

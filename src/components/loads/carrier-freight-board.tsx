@@ -76,7 +76,13 @@ function hoursUntil(iso: string) {
   return (new Date(iso).getTime() - Date.now()) / 3_600_000;
 }
 
-export function CarrierFreightBoard({ loads }: { loads: CarrierBoardLoad[] }) {
+export function CarrierFreightBoard({
+  loads,
+  bidderKind = "carrier",
+}: {
+  loads: CarrierBoardLoad[];
+  bidderKind?: "carrier" | "driver";
+}) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("departure");
   const [mode, setMode] = useState<"all" | "ftl" | "ltl">("all");
@@ -426,6 +432,7 @@ export function CarrierFreightBoard({ loads }: { loads: CarrierBoardLoad[] }) {
                       defaultPrice={target}
                       routeLabel={route}
                       loadRef={ref}
+                      bidderKind={bidderKind}
                       label={
                         load.offerCount === 0 && target != null
                           ? `Submit First Bid @ ${formatMoney(target)}`

@@ -25,6 +25,7 @@ export function ApplyButton({
   className,
   label = "Place Bid / Counter Quote",
   variant = "stitch",
+  bidderKind = "carrier",
 }: {
   loadId: string;
   defaultPrice?: number | null;
@@ -33,6 +34,8 @@ export function ApplyButton({
   className?: string;
   label?: string;
   variant?: "default" | "stitch" | "secondary";
+  /** Drivers bid under their company; company admin is notified. */
+  bidderKind?: "carrier" | "driver";
 }) {
   const router = useRouter();
   const { push } = useToast();
@@ -88,7 +91,8 @@ export function ApplyButton({
     })();
   }, [open]);
 
-  const showFleetAssign = vehicles.length > 0 || drivers.length > 0;
+  const showFleetAssign =
+    bidderKind !== "driver" && (vehicles.length > 0 || drivers.length > 0);
 
   async function apply() {
     setError(null);
@@ -111,7 +115,12 @@ export function ApplyButton({
       }
       setOpen(false);
       setMessage("");
-      push("Offer submitted — shipper will award one carrier", "success");
+      push(
+        bidderKind === "driver"
+          ? "Bid submitted — your company was notified"
+          : "Offer submitted — shipper will award one carrier",
+        "success",
+      );
       router.refresh();
     } catch {
       setError("Network error");
@@ -222,6 +231,11 @@ export function ApplyButton({
                 </select>
               </div>
             </>
+          ) : bidderKind === "driver" ? (
+            <p className="rounded-lg bg-surface-low px-3 py-2 text-xs text-muted-foreground">
+              Your bid is submitted for your company. Your company admin is
+              notified when you place an offer.
+            </p>
           ) : null}
           <div className="space-y-2">
             <Label htmlFor={`msg-${loadId}`}>Message (optional)</Label>

@@ -29,20 +29,32 @@ export default async function CarrierHomePage() {
 
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+  const driver =
+    user.role === "CARRIER_DRIVER"
+      ? await prisma.driver.findUnique({ where: { userId: user.id } })
+      : null;
+
+  const myAppWhere = {
+    OR: [
+      { applicantUserId: user.id },
+      ...(driver ? [{ driverId: driver.id }] : []),
+    ],
+  };
+
   const [openLoads, myActiveBids, wonApps, wonRecent, boardLoads, myApps] =
     await Promise.all([
       prisma.load.count({
         where: { status: { in: ["PUBLISHED", "RECEIVING_OFFERS"] } },
       }),
       prisma.loadApplication.count({
-        where: { applicantUserId: user.id, status: "PENDING" },
+        where: { ...myAppWhere, status: "PENDING" },
       }),
       prisma.loadApplication.count({
-        where: { applicantUserId: user.id, status: "ACCEPTED" },
+        where: { ...myAppWhere, status: "ACCEPTED" },
       }),
       prisma.loadApplication.findMany({
         where: {
-          applicantUserId: user.id,
+          ...myAppWhere,
           status: "ACCEPTED",
           updatedAt: { gte: since30d },
         },
@@ -64,7 +76,7 @@ export default async function CarrierHomePage() {
         },
       }),
       prisma.loadApplication.findMany({
-        where: { applicantUserId: user.id },
+        where: myAppWhere,
         select: { loadId: true, status: true },
       }),
     ]);
@@ -264,7 +276,10 @@ export default async function CarrierHomePage() {
           </div>
         </div>
 
-        <CarrierFreightBoard loads={cards} />
+        <CarrierFreightBoard
+          loads={cards}
+          bidderKind={user.role === "CARRIER_DRIVER" ? "driver" : "carrier"}
+        />
       </div>
     </div>
   );

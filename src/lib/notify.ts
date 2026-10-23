@@ -91,3 +91,17 @@ export async function notifyAdmins(input: Omit<NotifyInput, "userId">) {
     },
   );
 }
+
+/** Notify the login user linked to a fleet Driver row (no-op if none). */
+export async function notifyDriverById(
+  driverId: string | null | undefined,
+  input: Omit<NotifyInput, "userId">,
+) {
+  if (!driverId) return null;
+  const driver = await prisma.driver.findUnique({
+    where: { id: driverId },
+    select: { userId: true, status: true },
+  });
+  if (!driver?.userId || driver.status === "SUSPENDED") return null;
+  return notifyUser({ ...input, userId: driver.userId });
+}

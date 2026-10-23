@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { createEscrowForAward } from "@/lib/escrow";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
-import { notifyAdmins, notifyUser, notifyUsers } from "@/lib/notify";
+import {
+  notifyAdmins,
+  notifyDriverById,
+  notifyUser,
+  notifyUsers,
+} from "@/lib/notify";
 
 export async function POST(
   request: Request,
@@ -101,6 +106,16 @@ export async function POST(
     payload: { loadId, applicationId: app.id },
     href: `/c/loads/${loadId}`,
   });
+
+  if (app.driverId) {
+    await notifyDriverById(app.driverId, {
+      type: "application.accepted",
+      title: "You won a load",
+      body: `${load.pickupCity} → ${load.deliveryCity} was awarded to your company. Prepare for pickup.`,
+      payload: { loadId, applicationId: app.id },
+      href: `/c/loads/${loadId}`,
+    });
+  }
 
   if (others.length) {
     await notifyUsers(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Phone, Search, Truck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useToast } from "@/components/ui/toast";
-import { formatStatus } from "@/lib/format";
+import { formatMoney, formatStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Vehicle = {
@@ -36,6 +37,25 @@ type Driver = {
     id: string;
     email: string;
   } | null;
+};
+
+type DriverBid = {
+  id: string;
+  status: string;
+  proposedPrice: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  load: {
+    id: string;
+    reference: string | null;
+    status: string;
+    pickupCity: string;
+    pickupCountry: string;
+    deliveryCity: string;
+    deliveryCountry: string;
+    weightKg: number;
+  };
 };
 
 const VEHICLE_OPTIONS = [
@@ -83,6 +103,10 @@ export function FleetManager({
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>("all");
   const [driverSort, setDriverSort] = useState<DriverSort>("status");
+  const [detailDriver, setDetailDriver] = useState<Driver | null>(null);
+  const [detailBids, setDetailBids] = useState<DriverBid[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailTab, setDetailTab] = useState<"bids" | "wins">("wins");
 
   const [vForm, setVForm] = useState({
     label: "",
@@ -258,6 +282,24 @@ export function FleetManager({
     }
     push(vehicleId ? "Truck assigned" : "Truck unassigned", "success");
     await refreshLists();
+  }
+
+  async function openDriverDetail(d: Driver) {
+    setDetailDriver(d);
+    setDetailTab("wins");
+    setDetailBids([]);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/fleet/drivers/${d.id}`);
+      const data = await res.json();
+      if (!res.ok) {
+        push(data.error || "Could not load driver details", "error");
+        return;
+      }
+      setDetailBids(data.applications || []);
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   const vehicleTabs: { id: VehicleFilter; label: string }[] = [
@@ -445,7 +487,11 @@ export function FleetManager({
                 key={d.id}
                 className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3.5 shadow-sm lg:flex-row lg:items-center lg:justify-between"
               >
-                <div className="flex items-start gap-3 sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => void openDriverDetail(d)}
+                  className="flex items-start gap-3 text-left sm:items-center"
+                >
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#c2dbb5] bg-[#d8e8cf] text-xs font-bold text-[#2c581e]">
                     {initials(d.fullName)}
                   </div>
@@ -456,8 +502,11 @@ export function FleetManager({
                       {d.phone ? ` · ${d.phone}` : ""}
                       {d.licenceClass ? ` · ${d.licenceClass}` : ""}
                     </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-brand-hover">
+                      View bids & wins
+                    </p>
                   </div>
-                </div>
+                </button>
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     className="rounded-lg border border-border bg-surface-low py-1.5 pr-8 pl-3 text-xs"
@@ -551,6 +600,116 @@ export function FleetManager({
             {loading ? "Saving…" : "Save vehicle"}
           </Button>
         </div>
+      </Sheet>
+
+      <Sheet
+        open={Boolean(detailDriver)}
+        onClose={() => {
+          setDetailDriver(null);
+          setDetailBids([]);
+        }}
+        title={detailDriver?.fullName || "Driver"}
+        description="Bids placed for this driver and loads they won"
+        className="max-h-[85vh] sm:max-w-lg"
+      >
+        {detailDriver ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-surface-low px-3 py-2 text-xs text-muted-foreground">
+              <p>
+                {detailDriver.email || detailDriver.user?.email || "No email"}
+                {detailDriver.phone ? ` · ${detailDriver.phone}` : ""}
+              </p>
+              <p className="mt-1">
+                Truck:{" "}
+                {detailDriver.vehicle
+                  ? `${detailDriver.vehicle.label} (${detailDriver.vehicle.plateNumber})`
+                  : "Unassigned"}
+              </p>
+            </div>
+
+            <div className="flex gap-1 rounded-lg border border-border bg-card p-1 text-xs">
+              {(
+                [
+                  {
+                    id: "wins" as const,
+                    label: `Wins (${detailBids.filter((b) => b.status === "ACCEPTED").length})`,
+                  },
+                  {
+                    id: "bids" as const,
+                    label: `My bids (${detailBids.filter((b) => b.status === "PENDING").length})`,
+                  },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setDetailTab(tab.id)}
+                  className={cn(
+                    "flex-1 rounded px-2.5 py-1.5 font-medium",
+                    detailTab === tab.id
+                      ? "bg-brand-hover text-white"
+                      : "text-muted-foreground hover:bg-surface-low",
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {detailLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Loading…
+              </p>
+            ) : (
+              <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
+                {detailBids
+                  .filter((b) =>
+                    detailTab === "wins"
+                      ? b.status === "ACCEPTED"
+                      : b.status === "PENDING",
+                  )
+                  .map((b) => (
+                    <li key={b.id}>
+                      <Link
+                        href={`/c/loads/${b.load.id}`}
+                        className="block rounded-xl border border-border bg-card px-3 py-2.5 transition hover:border-brand-hover/40"
+                        onClick={() => setDetailDriver(null)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold text-foreground">
+                              {b.load.pickupCity} → {b.load.deliveryCity}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              {b.load.weightKg.toLocaleString()} kg
+                              {b.load.reference ? ` · ${b.load.reference}` : ""}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-bold">
+                              {formatMoney(b.proposedPrice, b.currency)}
+                            </p>
+                            <StatusBadge status={b.status} />
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                {!detailBids.filter((b) =>
+                  detailTab === "wins"
+                    ? b.status === "ACCEPTED"
+                    : b.status === "PENDING",
+                ).length ? (
+                  <li className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-sm text-muted-foreground">
+                    {detailTab === "wins"
+                      ? "No wins yet for this driver."
+                      : "No open bids for this driver."}
+                  </li>
+                ) : null}
+              </ul>
+            )}
+          </div>
+        ) : null}
       </Sheet>
 
       <Sheet
