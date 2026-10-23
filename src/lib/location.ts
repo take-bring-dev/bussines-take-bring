@@ -1,3 +1,8 @@
+/**
+ * Location helpers kept for a future re-enable.
+ * Tracking APIs currently return 503 — this module must still typecheck
+ * against the Prisma schema on Vercel after `prisma generate`.
+ */
 import { prisma } from "@/lib/db";
 
 export type LocationSample = {
@@ -75,7 +80,6 @@ export async function recordDriverLocation(
   ]);
 }
 
-/** Keep history lean — delete points older than N days for a user. */
 export async function pruneOldLocationPoints(userId: string, keepDays = 14) {
   const cutoff = new Date(Date.now() - keepDays * 24 * 60 * 60 * 1000);
   await prisma.driverLocationPoint.deleteMany({

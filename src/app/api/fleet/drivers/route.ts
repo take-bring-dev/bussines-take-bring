@@ -26,7 +26,6 @@ export async function GET() {
           id: true,
           email: true,
           status: true,
-          locationLatest: true,
         },
       },
     },
@@ -34,11 +33,9 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    drivers: drivers.map((d) => ({
+    drivers: drivers.map(({ ingestToken: _t, ...d }) => ({
       ...d,
-      hasIngestToken: Boolean(d.ingestToken),
-      // Never expose full token in list — use rotate endpoint to reveal.
-      ingestToken: undefined,
+      hasIngestToken: Boolean(_t),
     })),
   });
 }
