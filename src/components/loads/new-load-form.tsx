@@ -173,7 +173,7 @@ export function NewLoadForm() {
       }
       push(
         publish
-          ? "Consignment broadcasted — live on the marketplace"
+          ? "Submitted to platform admin for review"
           : "Draft consignment saved",
         "success",
       );
@@ -727,8 +727,8 @@ export function NewLoadForm() {
               </div>
               <div className="flex flex-col justify-end gap-2 md:col-span-6">
                 <p className="rounded-lg bg-surface-low p-3 text-xs text-muted-foreground">
-                  Spot tendering: carriers submit bids; you review and award one.
-                  Publishing opens the marketplace board immediately.
+                  Submit with your price to the platform admin. After review they
+                  publish to carriers (price hidden). Admin awards the winning bid.
                 </p>
               </div>
             </div>
@@ -745,7 +745,7 @@ export function NewLoadForm() {
               className="inline-flex h-12 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary-container px-4 text-sm font-bold text-on-primary-container shadow-md disabled:opacity-50"
             >
               <Rocket className="size-5" />
-              {loading === "publish" ? "Publishing…" : "Publish Spot Load"}
+              {loading === "publish" ? "Submitting…" : "Submit to Admin"}
             </button>
             <button
               type="button"
@@ -881,8 +881,8 @@ export function NewLoadForm() {
               >
                 <Rocket className="size-5" />
                 {loading === "publish"
-                  ? "Publishing…"
-                  : "Publish Spot Load to Marketplace"}
+                  ? "Submitting…"
+                  : "Submit Load to Platform Admin"}
               </button>
               <button
                 type="button"

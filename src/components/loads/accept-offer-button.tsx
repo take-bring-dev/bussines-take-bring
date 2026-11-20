@@ -48,7 +48,7 @@ export function AcceptOfferButton({
         return;
       }
       setOpen(false);
-      push("Offer awarded — fund escrow next", "success");
+      push("Offer awarded — shipper & carrier notified", "success");
       router.refresh();
     } catch {
       setError("Network error");
@@ -136,7 +136,8 @@ function ConfirmSheet({
             at <span className="font-semibold text-foreground">{priceLabel}</span>
           </>
         ) : null}
-        . All other pending offers will be rejected (marketplace award model).
+        . All other pending offers will be rejected. Settlement is handled offline
+        by the platform (no escrow).
       </p>
       {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
       <div className="mt-5 flex gap-2">

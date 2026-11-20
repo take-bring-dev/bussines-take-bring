@@ -13,6 +13,7 @@ import {
 import { AssignFleetPanel } from "@/components/loads/assign-fleet-panel";
 import { CarrierLoadStatusActions } from "@/components/loads/carrier-load-status-actions";
 import { RequestPaymentButton } from "@/components/loads/request-payment-button";
+import { DriverLiveMap } from "@/components/location/driver-live-map";
 import { getSessionUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { getCompanyForAdmin, getDriverForUser } from "@/lib/fleet";
@@ -75,7 +76,7 @@ export default async function CarrierBidDetailPage({
               vehicleClass: true,
             },
           },
-          driver: { select: { id: true, fullName: true } },
+          driver: { select: { id: true, fullName: true, userId: true } },
         },
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -97,6 +98,11 @@ export default async function CarrierBidDetailPage({
   const delta = target != null ? bidPrice - target : null;
   const shipperName =
     load.shipper.name || load.shipper.email.split("@")[0] || "Shipper";
+  const trackerUserId = bid.driver?.userId || bid.applicantUserId;
+  const showLiveMap =
+    won &&
+    ["ASSIGNED", "IN_TRANSIT", "DELIVERED"].includes(load.status) &&
+    Boolean(trackerUserId);
 
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
@@ -276,6 +282,13 @@ export default async function CarrierBidDetailPage({
                     loadId={load.id}
                     initialVehicleId={bid.vehicle?.id}
                     initialDriverId={bid.driver?.id}
+                  />
+                ) : null}
+                {showLiveMap && trackerUserId ? (
+                  <DriverLiveMap
+                    userId={trackerUserId}
+                    loadId={load.id}
+                    label={bid.driver?.fullName || shipperName}
                   />
                 ) : null}
                 <CarrierLoadStatusActions

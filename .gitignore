@@ -36,6 +36,9 @@ yarn-error.log*
 # Stitch design exports (local only)
 /_stitch-out/
 
+# Local product notebook / living docs (never push)
+/_notebook/
+
 # vercel
 .vercel
 

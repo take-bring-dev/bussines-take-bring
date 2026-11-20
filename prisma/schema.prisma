@@ -64,6 +64,7 @@ enum DriverStatus {
 
 enum LoadStatus {
   DRAFT
+  PENDING_ADMIN
   PUBLISHED
   RECEIVING_OFFERS
   OFFER_SELECTED

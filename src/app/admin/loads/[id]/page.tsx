@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { RouteWaypoint } from "@/components/loads/route-waypoint";
+import {
+  AdminAwardBids,
+  AdminPublishButton,
+} from "@/components/loads/admin-load-actions";
+import { DriverLiveMap } from "@/components/location/driver-live-map";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
 import { formatMoney, formatStatus, formatWindow } from "@/lib/format";
@@ -32,6 +37,7 @@ export default async function AdminLoadDetailPage({
         orderBy: { createdAt: "desc" },
         include: {
           applicant: { select: { id: true, name: true, email: true } },
+          driver: { select: { id: true, fullName: true, userId: true } },
         },
       },
       escrow: true,
@@ -41,6 +47,20 @@ export default async function AdminLoadDetailPage({
   if (!load) notFound();
 
   const ref = load.reference || `#${load.id.slice(0, 8).toUpperCase()}`;
+  const canPublish = ["PENDING_ADMIN", "DRAFT", "PUBLISHED"].includes(
+    load.status,
+  );
+  const canAward = ["PUBLISHED", "RECEIVING_OFFERS", "OFFER_SELECTED"].includes(
+    load.status,
+  );
+  const shipperPrice = load.suggestedBudgetEur
+    ? Number(load.suggestedBudgetEur)
+    : null;
+  const accepted = load.applications.find((a) => a.status === "ACCEPTED");
+  const trackerUserId = accepted?.driver?.userId || accepted?.applicantUserId;
+  const showLiveMap =
+    Boolean(trackerUserId) &&
+    ["ASSIGNED", "IN_TRANSIT", "DELIVERED"].includes(load.status);
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col px-4 py-4 md:px-6 lg:px-8">
@@ -64,9 +84,15 @@ export default async function AdminLoadDetailPage({
           <p className="text-sm text-muted-foreground">
             Shipper {load.shipper.name || load.shipper.email} ·{" "}
             {formatStatus(load.requiredVehicleClass)} · {load.weightKg} kg
+            {shipperPrice != null
+              ? ` · Shipper price ${formatMoney(shipperPrice)}`
+              : ""}
           </p>
         </div>
-        <StatusBadge status={load.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={load.status} />
+          {canPublish ? <AdminPublishButton loadId={load.id} /> : null}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -113,7 +139,11 @@ export default async function AdminLoadDetailPage({
               <Truck className="size-4 text-primary" />
             </div>
             {!load.applications.length ? (
-              <p className="text-sm text-muted-foreground">No bids yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {canPublish
+                  ? "Publish this load to the board to collect bids."
+                  : "No bids yet."}
+              </p>
             ) : (
               <ul className="divide-y divide-border">
                 {load.applications.map((app) => (
@@ -140,7 +170,30 @@ export default async function AdminLoadDetailPage({
                 ))}
               </ul>
             )}
+            <AdminAwardBids
+              loadId={load.id}
+              canAward={canAward}
+              bids={load.applications.map((app) => ({
+                id: app.id,
+                status: app.status,
+                proposedPrice: Number(app.proposedPrice),
+                currency: app.currency,
+                carrierName: app.applicant.name || app.applicant.email,
+              }))}
+            />
           </article>
+
+          {showLiveMap && trackerUserId ? (
+            <DriverLiveMap
+              userId={trackerUserId}
+              loadId={load.id}
+              label={
+                accepted?.driver?.fullName ||
+                accepted?.applicant.name ||
+                "Carrier"
+              }
+            />
+          ) : null}
         </div>
 
         <aside className="flex flex-col gap-4 lg:col-span-4">
@@ -174,34 +227,20 @@ export default async function AdminLoadDetailPage({
           <article className="rounded-lg bg-card p-4 shadow-sm">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold">
               <Wallet className="size-4 text-primary" />
-              Escrow
+              Settlement
             </h2>
-            {load.escrow ? (
-              <dl className="space-y-2 text-sm">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Amount</dt>
-                  <dd className="font-semibold tabular-nums">
-                    {formatMoney(Number(load.escrow.amount), load.escrow.currency)}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">Status</dt>
-                  <dd>
-                    <StatusBadge status={load.escrow.status} />
-                  </dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No escrow yet — created when an offer is awarded.
+            <p className="text-sm text-muted-foreground">
+              Escrow is disabled. Collect from the shipper and pay the awarded
+              carrier offline — track receivables / payables yourself for now.
+            </p>
+            {shipperPrice != null ? (
+              <p className="mt-3 text-sm">
+                <span className="text-muted-foreground">Shipper asking: </span>
+                <strong className="tabular-nums">
+                  {formatMoney(shipperPrice)}
+                </strong>
               </p>
-            )}
-            <Link
-              href="/admin/escrow"
-              className="mt-3 inline-block text-xs font-semibold text-primary hover:underline"
-            >
-              Escrow monitor →
-            </Link>
+            ) : null}
           </article>
         </aside>
       </div>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { CarrierChrome } from "@/components/layout/carrier-chrome";
+import { LocationTracker } from "@/components/location/location-tracker";
 import { getSessionUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 
@@ -21,18 +22,33 @@ export default async function CarrierLayout({
     redirect("/login");
   }
 
-  const [company, individual, driver, unreadCount] = await Promise.all([
-    prisma.carrierCompanyProfile.findUnique({
-      where: { adminUserId: user.id },
-    }),
-    prisma.carrierIndividualProfile.findUnique({
-      where: { userId: user.id },
-    }),
-    prisma.driver.findUnique({ where: { userId: user.id } }),
-    prisma.notification.count({
-      where: { userId: user.id, readAt: null },
-    }),
-  ]);
+  const [company, individual, driver, unreadCount, activeTrip] =
+    await Promise.all([
+      prisma.carrierCompanyProfile.findUnique({
+        where: { adminUserId: user.id },
+      }),
+      prisma.carrierIndividualProfile.findUnique({
+        where: { userId: user.id },
+      }),
+      prisma.driver.findUnique({ where: { userId: user.id } }),
+      prisma.notification.count({
+        where: { userId: user.id, readAt: null },
+      }),
+      // Enable PWA GPS assist while on an active assigned/transit job
+      prisma.loadApplication.findFirst({
+        where: {
+          status: "ACCEPTED",
+          load: { status: { in: ["ASSIGNED", "IN_TRANSIT"] } },
+          OR: [
+            { applicantUserId: user.id },
+            ...(user.role === "CARRIER_DRIVER"
+              ? [{ driver: { userId: user.id } }]
+              : []),
+          ],
+        },
+        select: { id: true },
+      }),
+    ]);
 
   const companyName =
     company?.companyName?.trim() ||
@@ -42,6 +58,10 @@ export default async function CarrierLayout({
     user.email.split("@")[0] ||
     "Carrier";
 
+  const trackWhileOpen =
+    Boolean(activeTrip) &&
+    (user.role === "CARRIER_DRIVER" || user.role === "CARRIER_INDIVIDUAL");
+
   return (
     <CarrierChrome
       companyName={companyName}
@@ -49,6 +69,7 @@ export default async function CarrierLayout({
       unreadCount={unreadCount}
       role={user.role}
     >
+      <LocationTracker enabled={trackWhileOpen} />
       {children}
     </CarrierChrome>
   );

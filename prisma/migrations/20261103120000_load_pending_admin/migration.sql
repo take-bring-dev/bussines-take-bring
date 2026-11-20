@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "LoadStatus" ADD VALUE IF NOT EXISTS 'PENDING_ADMIN';

@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
-import { createEscrowForAward } from "@/lib/escrow";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
 import {
-  notifyAdmins,
   notifyDriverById,
   notifyUser,
   notifyUsers,
 } from "@/lib/notify";
 
+/**
+ * Super admin awards one bid. No escrow — settlement is offline / AR-AP by admin.
+ * Other pending bids are auto-rejected. Shipper + winner (+ assigned driver) notified.
+ */
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireRoles("SHIPPER");
+  const auth = await requireRoles("SUPER_ADMIN");
   if (!auth.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   }
@@ -26,83 +28,85 @@ export async function POST(
   }
 
   const load = await prisma.load.findUnique({ where: { id: loadId } });
-  if (!load || load.shipperId !== auth.user.id) {
+  if (!load) {
     return NextResponse.json({ error: "Load not found." }, { status: 404 });
   }
+  if (!["PUBLISHED", "RECEIVING_OFFERS", "OFFER_SELECTED"].includes(load.status)) {
+    return NextResponse.json(
+      { error: "Load is not open for awarding." },
+      { status: 400 },
+    );
+  }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const app = await tx.loadApplication.findUnique({ where: { id: applicationId } });
-    if (!app || app.loadId !== loadId || app.status !== "PENDING") {
-      throw new Error("INVALID_APPLICATION");
-    }
+  const result = await prisma
+    .$transaction(async (tx) => {
+      const app = await tx.loadApplication.findUnique({
+        where: { id: applicationId },
+      });
+      if (!app || app.loadId !== loadId || app.status !== "PENDING") {
+        throw new Error("INVALID_APPLICATION");
+      }
 
-    await tx.loadApplication.update({
-      where: { id: applicationId },
-      data: { status: "ACCEPTED" },
+      await tx.loadApplication.update({
+        where: { id: applicationId },
+        data: { status: "ACCEPTED" },
+      });
+
+      await tx.loadApplication.updateMany({
+        where: {
+          loadId,
+          id: { not: applicationId },
+          status: "PENDING",
+        },
+        data: { status: "REJECTED" },
+      });
+
+      await tx.load.update({
+        where: { id: loadId },
+        data: { status: "ASSIGNED", assignedAt: new Date() },
+      });
+
+      const others = await tx.loadApplication.findMany({
+        where: { loadId, id: { not: applicationId }, status: "REJECTED" },
+        select: { applicantUserId: true, driverId: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: auth.user.id,
+          action: "load.admin_accept_offer",
+          entityType: "load",
+          entityId: loadId,
+          meta: { applicationId },
+        },
+      });
+
+      return { app, others };
+    })
+    .catch((e) => {
+      if (e instanceof Error && e.message === "INVALID_APPLICATION") return null;
+      throw e;
     });
-
-    await tx.loadApplication.updateMany({
-      where: {
-        loadId,
-        id: { not: applicationId },
-        status: "PENDING",
-      },
-      data: { status: "REJECTED" },
-    });
-
-    await tx.load.update({
-      where: { id: loadId },
-      data: { status: "ASSIGNED", assignedAt: new Date() },
-    });
-
-    const others = await tx.loadApplication.findMany({
-      where: { loadId, id: { not: applicationId } },
-      select: { applicantUserId: true },
-    });
-
-    await tx.auditLog.create({
-      data: {
-        actorId: auth.user.id,
-        action: "load.accept_offer",
-        entityType: "load",
-        entityId: loadId,
-        meta: { applicationId },
-      },
-    });
-
-    return { app, others };
-  }).catch((e) => {
-    if (e instanceof Error && e.message === "INVALID_APPLICATION") return null;
-    throw e;
-  });
 
   if (!result) {
     return NextResponse.json({ error: "Invalid application." }, { status: 400 });
   }
 
   const { app, others } = result;
-
-  const escrow = await createEscrowForAward({
-    loadId,
-    applicationId: app.id,
-    shipperId: load.shipperId,
-    carrierUserId: app.applicantUserId,
-    amount: Number(app.proposedPrice),
-    currency: app.currency,
-  });
+  const routeLabel = `${load.pickupCity} → ${load.deliveryCity}`;
+  const priceLabel = `€${Number(app.proposedPrice).toFixed(2)}`;
 
   const carrier = await prisma.user.findUnique({
     where: { id: app.applicantUserId },
     select: { name: true, email: true },
   });
   const carrierLabel = carrier?.name || carrier?.email || "Carrier";
-  const shipperLabel = auth.user.name || auth.user.email || "Shipper";
 
   await notifyUser({
     userId: app.applicantUserId,
     type: "application.accepted",
     title: "Offer accepted",
-    body: "Your offer was accepted. Prepare for pickup — shipper will fund escrow.",
+    body: `Your bid of ${priceLabel} on ${routeLabel} was accepted. Prepare for pickup.`,
     payload: { loadId, applicationId: app.id },
     href: `/c/loads/${loadId}`,
   });
@@ -111,50 +115,42 @@ export async function POST(
     await notifyDriverById(app.driverId, {
       type: "application.accepted",
       title: "You won a load",
-      body: `${load.pickupCity} → ${load.deliveryCity} was awarded to your company. Prepare for pickup.`,
+      body: `${routeLabel} was awarded to your company. Prepare for pickup.`,
       payload: { loadId, applicationId: app.id },
       href: `/c/loads/${loadId}`,
     });
   }
 
-  if (others.length) {
-    await notifyUsers(
-      others.map((o) => o.applicantUserId),
-      {
-        type: "application.rejected",
-        title: "Offer not selected",
-        body: "Another carrier was chosen for this load.",
-        payload: { loadId },
-        href: "/c",
-      },
-    );
+  const loserIds = [
+    ...new Set(
+      others
+        .map((o) => o.applicantUserId)
+        .filter((id) => id !== app.applicantUserId),
+    ),
+  ];
+  if (loserIds.length) {
+    await notifyUsers(loserIds, {
+      type: "application.rejected",
+      title: "Offer not selected",
+      body: "Another carrier was chosen for this load.",
+      payload: { loadId },
+      href: "/c",
+    });
   }
 
   await notifyUser({
     userId: load.shipperId,
-    type: "escrow.pay_due",
-    title: "Pay escrow for awarded load",
-    body: `Fund ${Number(app.proposedPrice).toFixed(2)} ${app.currency} to lock the contract.`,
-    payload: { loadId, escrowId: escrow.id },
-    href: "/s/billing",
-  });
-
-  await notifyAdmins({
-    type: "admin.application.accepted",
-    title: "Carrier awarded a load",
-    body: `${shipperLabel} awarded ${carrierLabel} · ${load.pickupCity} → ${load.deliveryCity} · €${Number(app.proposedPrice).toFixed(2)}`,
+    type: "load.awarded",
+    title: "Your load has been accepted",
+    body: `${carrierLabel} was awarded ${routeLabel} at ${priceLabel}. Settlement is handled by the platform.`,
     payload: {
       loadId,
       applicationId: app.id,
-      shipperId: load.shipperId,
       carrierId: app.applicantUserId,
-      carrierName: carrierLabel,
+      amount: Number(app.proposedPrice),
     },
-    href: `/admin/loads/${loadId}`,
+    href: `/s/loads/${loadId}`,
   });
 
-  return NextResponse.json({
-    ok: true,
-    escrow: { id: escrow.id, status: escrow.status },
-  });
+  return NextResponse.json({ ok: true });
 }

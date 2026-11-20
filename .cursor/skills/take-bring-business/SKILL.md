@@ -94,6 +94,12 @@ npm run stitch:generate / stitch:sync
 - No silent access-token rotation endpoint
 - Live GPS re-enable later via LocationTracker + `/api/location/*` (currently 503)
 
+## Living notebook (local only — gitignored)
+
+Open `_notebook/index.html` in a browser. It documents **every flow**, EU KYC hard forms, live-location API options, and gaps.
+
+**Rule:** after any flow/status/notification/KYC/location change, update `_notebook/index.html` in the same session (changelog section + affected flow). Never commit `_notebook/` (see `.gitignore`).
+
 ## Deeper reference
 
 For route maps, enums, API list, and maturity detail see [reference.md](reference.md).

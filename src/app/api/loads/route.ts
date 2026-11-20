@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { VehicleClass } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireRoles } from "@/lib/auth/session";
-import { notifyAdmins, notifyUsers } from "@/lib/notify";
+import { notifyAdmins } from "@/lib/notify";
 
 const VEHICLE_MAP: Record<string, VehicleClass> = {
   car: "CAR",
@@ -58,11 +58,40 @@ export async function GET() {
     return NextResponse.json({ loads });
   }
 
-  // Carriers see published / receiving offers
+  // Company drivers do not browse the open board
+  if (auth.user.role === "CARRIER_DRIVER") {
+    return NextResponse.json({ loads: [] });
+  }
+
+  // Carriers / individuals see open board (no shipper price in list payload)
   const loads = await prisma.load.findMany({
     where: { status: { in: ["PUBLISHED", "RECEIVING_OFFERS"] } },
     orderBy: { publishedAt: "desc" },
-    include: {
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      pickupCity: true,
+      pickupZip: true,
+      pickupCountry: true,
+      pickupCompany: true,
+      pickupStreet: true,
+      pickupWindowStart: true,
+      pickupWindowEnd: true,
+      deliveryCity: true,
+      deliveryZip: true,
+      deliveryCountry: true,
+      deliveryCompany: true,
+      deliveryStreet: true,
+      deliveryWindowStart: true,
+      deliveryWindowEnd: true,
+      cargoDescription: true,
+      weightKg: true,
+      palletCount: true,
+      hazardous: true,
+      requiredVehicleClass: true,
+      publishedAt: true,
+      createdAt: true,
       _count: { select: { applications: true } },
     },
     take: 50,
@@ -70,7 +99,10 @@ export async function GET() {
   return NextResponse.json({ loads });
 }
 
-/** Shipper creates + optionally publishes a load */
+/**
+ * Shipper creates a draft or submits to super admin (PENDING_ADMIN).
+ * Carriers never see the load until admin publishes.
+ */
 export async function POST(request: Request) {
   const auth = await requireRoles("SHIPPER");
   if (!auth.ok) {
@@ -79,7 +111,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const publish = Boolean(body.publish);
+    const submit = Boolean(body.publish); // "publish" from form = submit for admin
     const now = new Date();
     const pickupStart = body.pickupWindowStart
       ? new Date(body.pickupWindowStart)
@@ -94,6 +126,18 @@ export async function POST(request: Request) {
       ? new Date(body.deliveryWindowEnd)
       : new Date(deliveryStart.getTime() + 4 * 60 * 60 * 1000);
 
+    const budget =
+      body.suggestedBudgetEur != null && body.suggestedBudgetEur !== ""
+        ? Number(body.suggestedBudgetEur)
+        : null;
+
+    if (submit && (budget == null || !Number.isFinite(budget) || budget <= 0)) {
+      return NextResponse.json(
+        { error: "Price is required when submitting a load." },
+        { status: 400 },
+      );
+    }
+
     const load = await prisma.$transaction(
       async (tx) => {
         const created = await tx.load.create({
@@ -101,9 +145,10 @@ export async function POST(request: Request) {
             shipperId: auth.user.id,
             reference: body.reference?.trim() || null,
             title: body.title?.trim() || null,
-            status: publish ? "RECEIVING_OFFERS" : "DRAFT",
+            status: submit ? "PENDING_ADMIN" : "DRAFT",
             pickupCompany: body.pickupCompany?.trim() || null,
-            pickupStreet: body.pickupStreet?.trim() || body.pickupCity?.trim() || "TBD",
+            pickupStreet:
+              body.pickupStreet?.trim() || body.pickupCity?.trim() || "TBD",
             pickupZip: body.pickupZip?.trim() || "00000",
             pickupCity: body.pickupCity?.trim() || "TBD",
             pickupCountry: body.pickupCountry?.trim() || "DE",
@@ -112,7 +157,8 @@ export async function POST(request: Request) {
             pickupWindowStart: pickupStart,
             pickupWindowEnd: pickupEnd,
             deliveryCompany: body.deliveryCompany?.trim() || null,
-            deliveryStreet: body.deliveryStreet?.trim() || body.deliveryCity?.trim() || "TBD",
+            deliveryStreet:
+              body.deliveryStreet?.trim() || body.deliveryCity?.trim() || "TBD",
             deliveryZip: body.deliveryZip?.trim() || "00000",
             deliveryCity: body.deliveryCity?.trim() || "TBD",
             deliveryCountry: body.deliveryCountry?.trim() || "DE",
@@ -122,25 +168,23 @@ export async function POST(request: Request) {
             deliveryWindowEnd: deliveryEnd,
             cargoDescription: body.cargoDescription?.trim() || "General cargo",
             weightKg: Number(body.weightKg) || 100,
-            palletCount: body.palletCount != null ? Number(body.palletCount) : null,
+            palletCount:
+              body.palletCount != null ? Number(body.palletCount) : null,
             stackable: Boolean(body.stackable),
             hazardous: Boolean(body.hazardous),
             temperatureControl: Boolean(body.temperatureControl),
             loadingHelpNeeded: Boolean(body.loadingHelpNeeded),
             requiredVehicleClass: parseVehicle(body.requiredVehicleClass),
-            suggestedBudgetEur:
-              body.suggestedBudgetEur != null && body.suggestedBudgetEur !== ""
-                ? Number(body.suggestedBudgetEur)
-                : null,
+            suggestedBudgetEur: budget,
             notes: body.notes?.trim() || null,
-            publishedAt: publish ? now : null,
+            publishedAt: null,
           },
         });
 
         await tx.auditLog.create({
           data: {
             actorId: auth.user.id,
-            action: publish ? "load.publish" : "load.draft",
+            action: submit ? "load.submit_admin" : "load.draft",
             entityType: "load",
             entityId: created.id,
           },
@@ -151,44 +195,21 @@ export async function POST(request: Request) {
       { maxWait: 10_000, timeout: 30_000 },
     );
 
-    if (publish) {
+    if (submit) {
       const shipperLabel = auth.user.name || auth.user.email;
       const routeLabel = `${load.pickupCity} → ${load.deliveryCity} · ${load.weightKg} kg`;
-
-      const carriers = await prisma.user.findMany({
-        where: {
-          status: "ACTIVE",
-          role: {
-            in: [
-              "CARRIER_INDIVIDUAL",
-              "CARRIER_COMPANY_ADMIN",
-              "CARRIER_DRIVER",
-            ],
-          },
-        },
-        select: { id: true },
-      });
-      if (carriers.length) {
-        await notifyUsers(
-          carriers.map((c) => c.id),
-          {
-            type: "load.published",
-            title: "New load available",
-            body: routeLabel,
-            payload: { loadId: load.id },
-            href: "/c",
-          },
-        );
-      }
+      const priceLabel =
+        budget != null ? ` · €${budget.toFixed(2)}` : "";
 
       await notifyAdmins({
-        type: "admin.load.created",
-        title: "Shipper published a load",
-        body: `${shipperLabel} created ${routeLabel}`,
+        type: "admin.load.pending",
+        title: "New load awaiting review",
+        body: `${shipperLabel} submitted ${routeLabel}${priceLabel}`,
         payload: {
           loadId: load.id,
           shipperId: auth.user.id,
           shipperName: shipperLabel,
+          suggestedBudgetEur: budget,
         },
         href: `/admin/loads/${load.id}`,
       });

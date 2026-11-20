@@ -115,9 +115,7 @@ export function CarrierFreightBoard({
 
     rows.sort((a, b) => {
       if (sort === "rate") {
-        const ar = a.suggestedBudgetEur ? Number(a.suggestedBudgetEur) : 0;
-        const br = b.suggestedBudgetEur ? Number(b.suggestedBudgetEur) : 0;
-        return br - ar;
+        return b.offerCount - a.offerCount;
       }
       if (sort === "created") {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -188,8 +186,8 @@ export function CarrierFreightBoard({
               className="h-10 w-full cursor-pointer rounded-lg bg-surface-low px-3 text-sm font-medium outline-none"
             >
               <option value="departure">Departure (Earliest First)</option>
-              <option value="rate">Highest Target Rate (€)</option>
               <option value="created">Recently Posted</option>
+              <option value="rate">Most bids</option>
             </select>
           </div>
         </div>
@@ -234,9 +232,6 @@ export function CarrierFreightBoard({
         {pageRows.map((load) => {
           const ref =
             load.reference || `TB-${load.id.slice(0, 8).toUpperCase()}`;
-          const target = load.suggestedBudgetEur
-            ? Number(load.suggestedBudgetEur)
-            : null;
           const urgent = hoursUntil(load.pickupWindowStart) < 24;
           const route = `${load.pickupCity} → ${load.deliveryCity}`;
 
@@ -367,50 +362,31 @@ export function CarrierFreightBoard({
                 </div>
               </div>
 
-              {/* Rate box */}
+              {/* Bid box — shipper price hidden from carriers */}
               <div className="flex w-full shrink-0 flex-col justify-between gap-4 rounded-xl bg-surface-low p-4 xl:w-80">
                 <div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Shipper Target Rate</span>
-                    <span className="flex items-center gap-0.5 font-semibold text-success">
+                    <span>Your bid</span>
+                    <span className="flex items-center gap-0.5 font-semibold text-muted-foreground">
                       <Lock className="size-3.5" />
-                      Escrow Protected
+                      Price hidden
                     </span>
                   </div>
-                  <div className="mt-1 flex items-baseline justify-between">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold md:text-[32px] md:leading-10">
-                        {target != null ? formatMoney(target) : "—"}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        net
-                      </span>
-                    </div>
-                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Submit your all-in freight offer. Shipper target is not shown
+                    on the board.
+                  </p>
 
                   <div className="mt-2 flex items-center justify-between rounded-lg bg-card p-2">
                     <div className="flex flex-col">
                       <span className="text-[11px] text-muted-foreground">
-                        Current Lowest Bid
+                        Competition
                       </span>
-                      <span
-                        className={cn(
-                          "text-base font-bold",
-                          load.lowestBid != null
-                            ? "text-destructive"
-                            : "text-foreground",
-                        )}
-                      >
-                        {load.lowestBid != null
-                          ? formatMoney(load.lowestBid)
-                          : "No bids yet"}
+                      <span className="text-base font-bold text-foreground">
+                        {load.offerCount} bid{load.offerCount === 1 ? "" : "s"}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <span className="size-2 rounded-full bg-primary" />
-                        {load.offerCount} bids
-                      </span>
                       {urgent ? (
                         <div className="flex items-center justify-end gap-0.5 text-[11px] font-semibold text-destructive">
                           <Timer className="size-3.5" />
@@ -429,15 +405,11 @@ export function CarrierFreightBoard({
                   ) : (
                     <ApplyButton
                       loadId={load.id}
-                      defaultPrice={target}
+                      defaultPrice={null}
                       routeLabel={route}
                       loadRef={ref}
                       bidderKind={bidderKind}
-                      label={
-                        load.offerCount === 0 && target != null
-                          ? `Submit First Bid @ ${formatMoney(target)}`
-                          : "Place Bid / Counter Quote"
-                      }
+                      label="Place Bid / Counter Quote"
                     />
                   )}
                   <Link

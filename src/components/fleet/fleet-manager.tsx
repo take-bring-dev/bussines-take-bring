@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Sheet } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useToast } from "@/components/ui/toast";
+import { DriverGpsSetup } from "@/components/location/driver-gps-setup";
+import { FleetLiveMap } from "@/components/location/fleet-live-map";
 import { formatMoney, formatStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -394,6 +396,8 @@ export function FleetManager({
         </div>
       </header>
 
+      <FleetLiveMap className="pt-1" />
+
       <section className="space-y-3">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <h2 className="text-[11px] font-bold tracking-wider text-foreground uppercase">
@@ -626,6 +630,11 @@ export function FleetManager({
                   : "Unassigned"}
               </p>
             </div>
+
+            <DriverGpsSetup
+              driverId={detailDriver.id}
+              driverName={detailDriver.fullName}
+            />
 
             <div className="flex gap-1 rounded-lg border border-border bg-card p-1 text-xs">
               {(

@@ -1,7 +1,5 @@
 /**
- * Location helpers kept for a future re-enable.
- * Tracking APIs currently return 503 — this module must still typecheck
- * against the Prisma schema on Vercel after `prisma generate`.
+ * Driver location persistence (Traccar ingest + PWA update).
  */
 import { prisma } from "@/lib/db";
 

@@ -19,6 +19,7 @@ export default async function AdminLoadsPage({
   const statusFilter =
     raw &&
     [
+      "PENDING_ADMIN",
       "PUBLISHED",
       "RECEIVING_OFFERS",
       "ASSIGNED",
@@ -41,6 +42,7 @@ export default async function AdminLoadsPage({
 
   const chips = [
     { key: null, label: "All", href: "/admin/loads" },
+    { key: "PENDING_ADMIN", label: "Awaiting publish", href: "/admin/loads?status=PENDING_ADMIN" },
     { key: "RECEIVING_OFFERS", label: "Receiving offers", href: "/admin/loads?status=RECEIVING_OFFERS" },
     { key: "ASSIGNED", label: "Assigned", href: "/admin/loads?status=ASSIGNED" },
     { key: "IN_TRANSIT", label: "In transit", href: "/admin/loads?status=IN_TRANSIT" },

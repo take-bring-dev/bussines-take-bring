@@ -4,6 +4,7 @@ import { formatStatus } from "@/lib/format";
 /** Design System v1.0 — Module E (chip + text) */
 const STATUS_CLASS: Record<string, string> = {
   DRAFT: "bg-[#ECF8DF] border-[#767964] text-[#454836]",
+  PENDING_ADMIN: "bg-[#ECF8DF] border-[#767964] text-[#454836]",
   PUBLISHED: "bg-[#E6F2DA] border-[#556500] text-[#556500]",
   RECEIVING_OFFERS: "bg-[#D3EF51] border-[#ABC629] text-[#151E10]",
   OFFER_SELECTED: "bg-[#D3EF51] border-[#ABC629] text-[#151E10]",
@@ -31,7 +32,7 @@ const STATUS_CLASS: Record<string, string> = {
   REFUNDED: "bg-[#FFDAD6] border-[#BA1A1A] text-[#BA1A1A]",
 };
 
-const PULSE = new Set(["RECEIVING_OFFERS", "PUBLISHED"]);
+const PULSE = new Set(["RECEIVING_OFFERS", "PUBLISHED", "PENDING_ADMIN"]);
 
 export function StatusBadge({
   status,

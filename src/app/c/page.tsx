@@ -27,19 +27,14 @@ export default async function CarrierHomePage() {
     redirect("/login");
   }
 
+  // Company drivers only see assigned / won jobs — not the open board
+  if (user.role === "CARRIER_DRIVER") {
+    redirect("/c/loads");
+  }
+
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const driver =
-    user.role === "CARRIER_DRIVER"
-      ? await prisma.driver.findUnique({ where: { userId: user.id } })
-      : null;
-
-  const myAppWhere = {
-    OR: [
-      { applicantUserId: user.id },
-      ...(driver ? [{ driverId: driver.id }] : []),
-    ],
-  };
+  const myAppWhere = { applicantUserId: user.id };
 
   const [openLoads, myActiveBids, wonApps, wonRecent, boardLoads, myApps] =
     await Promise.all([
@@ -67,12 +62,6 @@ export default async function CarrierHomePage() {
         include: {
           shipper: { select: { name: true, email: true } },
           _count: { select: { applications: true } },
-          applications: {
-            where: { status: "PENDING" },
-            orderBy: { proposedPrice: "asc" },
-            take: 1,
-            select: { proposedPrice: true },
-          },
         },
       }),
       prisma.loadApplication.findMany({
@@ -119,12 +108,10 @@ export default async function CarrierHomePage() {
     palletCount: load.palletCount,
     hazardous: load.hazardous,
     requiredVehicleClass: load.requiredVehicleClass,
-    suggestedBudgetEur: load.suggestedBudgetEur?.toString() ?? null,
+    suggestedBudgetEur: null, // never show shipper price on carrier board
     createdAt: load.createdAt.toISOString(),
     offerCount: load._count.applications,
-    lowestBid: load.applications[0]
-      ? Number(load.applications[0].proposedPrice)
-      : null,
+    lowestBid: null,
     shipperName: load.shipper.name || load.shipper.email.split("@")[0],
     alreadyApplied: myLoadIds.has(load.id),
   }));

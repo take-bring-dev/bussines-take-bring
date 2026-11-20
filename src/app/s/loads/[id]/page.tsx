@@ -13,12 +13,9 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { AcceptOfferButton } from "@/components/loads/accept-offer-button";
-import { EscrowPanel } from "@/components/loads/escrow-panel";
-import { RejectOfferButton } from "@/components/loads/reject-offer-button";
+import { DriverLiveMap } from "@/components/location/driver-live-map";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
-import { isStripeMock } from "@/lib/stripe";
 import { formatMoney, formatStatus, formatWindow } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +54,9 @@ export default async function ShipperLoadDetailPage({
       applications: {
         orderBy: { proposedPrice: "asc" },
         include: {
-          applicant: { select: { name: true, email: true, role: true } },
+          applicant: {
+            select: { id: true, name: true, email: true, role: true },
+          },
           vehicle: {
             select: {
               plateNumber: true,
@@ -65,7 +64,7 @@ export default async function ShipperLoadDetailPage({
               vehicleClass: true,
             },
           },
-          driver: { select: { fullName: true } },
+          driver: { select: { fullName: true, userId: true } },
         },
       },
     },
@@ -78,6 +77,11 @@ export default async function ShipperLoadDetailPage({
   const ref = load.reference || `TB-${load.id.slice(0, 8).toUpperCase()}`;
   const pending = load.applications.filter((a) => a.status === "PENDING");
   const accepted = load.applications.find((a) => a.status === "ACCEPTED");
+  const trackerUserId =
+    accepted?.driver?.userId || accepted?.applicantUserId || null;
+  const showLiveMap =
+    Boolean(trackerUserId) &&
+    ["ASSIGNED", "IN_TRANSIT", "DELIVERED"].includes(load.status);
   const ranked = [...load.applications].sort((a, b) => {
     const rank = (s: string) =>
       s === "PENDING" ? 0 : s === "ACCEPTED" ? 1 : 2;
@@ -92,8 +96,8 @@ export default async function ShipperLoadDetailPage({
   const lowestPrice = lowest ? Number(lowest.proposedPrice) : null;
   const delta =
     target != null && lowestPrice != null ? lowestPrice - target : null;
-  const canAward =
-    !["ASSIGNED", "IN_TRANSIT", "DELIVERED", "CANCELLED"].includes(load.status);
+  const canAward = false; // awards are done by super admin
+  const isPendingAdmin = load.status === "PENDING_ADMIN";
   const isReceiving =
     load.status === "RECEIVING_OFFERS" ||
     load.status === "PUBLISHED" ||
@@ -138,8 +142,9 @@ export default async function ShipperLoadDetailPage({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {load.pickupCity} ({load.pickupCountry}) to {load.deliveryCity} (
-            {load.deliveryCountry}) • BaFin escrow reserve •{" "}
+            {load.deliveryCountry}) • Platform-mediated •{" "}
             {load.weightKg.toLocaleString("de-DE")} kg
+            {isPendingAdmin ? " • Awaiting admin publish" : ""}
           </p>
         </div>
 
@@ -232,7 +237,7 @@ export default async function ShipperLoadDetailPage({
               </span>
             </div>
             <p className="mt-0.5 text-[10px] font-medium text-success">
-              Award one carrier to lock dispatch
+              Platform admin awards the winning carrier
             </p>
           </div>
           <div className="flex size-9 items-center justify-center rounded border border-border bg-surface-low text-primary">
@@ -245,7 +250,7 @@ export default async function ShipperLoadDetailPage({
             <div className="flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-success" />
               <p className="text-[11px] font-bold tracking-wider uppercase">
-                Escrow Reserve
+                Your price
               </p>
             </div>
             <div className="mt-0.5 flex items-baseline gap-1.5">
@@ -257,15 +262,15 @@ export default async function ShipperLoadDetailPage({
                     : "—"}
               </span>
               <span className="text-[10px] font-semibold text-success">
-                {accepted ? "Locked" : "Target"}
+                {accepted ? "Awarded" : "Submitted"}
               </span>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Segregated trust • payout on POD
+              Hidden from carriers • admin settles offline
             </p>
           </div>
           <span className="rounded border border-border bg-card px-2 py-1 text-xs font-bold text-success">
-            {accepted ? "FUNDED" : "READY"}
+            {accepted ? "AWARDED" : formatStatus(load.status)}
           </span>
         </div>
       </div>
@@ -310,8 +315,6 @@ export default async function ShipperLoadDetailPage({
             const vehicleLabel = o.vehicle
               ? o.vehicle.label || formatStatus(o.vehicle.vehicleClass)
               : formatStatus(load.requiredVehicleClass);
-            const canAct = o.status === "PENDING" && canAward;
-
             return (
               <article
                 key={o.id}
@@ -448,29 +451,14 @@ export default async function ShipperLoadDetailPage({
                     </div>
 
                     <div className="mt-3 space-y-1.5">
-                      {canAct ? (
-                        <>
-                          <AcceptOfferButton
-                            loadId={load.id}
-                            applicationId={o.id}
-                            carrierName={name || undefined}
-                            priceLabel={priceLabel}
-                            variant={isBest ? "stitch" : "outline"}
-                          />
-                          <div className="flex gap-2">
-                            <RejectOfferButton
-                              loadId={load.id}
-                              applicationId={o.id}
-                            />
-                            <span className="w-1/2 rounded border border-border bg-surface-low py-1 text-center text-[11px] font-semibold text-muted-foreground opacity-60">
-                              Chat
-                            </span>
-                          </div>
-                        </>
-                      ) : o.status === "ACCEPTED" ? (
+                      {o.status === "ACCEPTED" ? (
                         <div className="flex items-center justify-center gap-1.5 rounded-md bg-success-container/50 py-2.5 text-xs font-bold text-success">
                           <CheckCircle2 className="size-4" />
-                          Contract awarded
+                          Contract awarded by platform
+                        </div>
+                      ) : o.status === "PENDING" ? (
+                        <div className="rounded-md border border-border bg-surface-low py-2.5 text-center text-xs font-semibold text-muted-foreground">
+                          Under admin review
                         </div>
                       ) : (
                         <div className="rounded-md border border-border bg-surface-low py-2.5 text-center text-xs font-semibold text-muted-foreground">
@@ -622,32 +610,27 @@ export default async function ShipperLoadDetailPage({
             </div>
           </div>
 
-          <EscrowPanel
-            loadId={load.id}
-            reference={ref}
-            fallbackAmount={
-              accepted
-                ? Number(accepted.proposedPrice)
-                : target != null
-                  ? target
-                  : null
-            }
-            fallbackCurrency={accepted?.currency ?? "EUR"}
-            escrow={
-              load.escrow
-                ? {
-                    id: load.escrow.id,
-                    status: load.escrow.status,
-                    amount: Number(load.escrow.amount),
-                    currency: load.escrow.currency,
-                    mock: load.escrow.mock || isStripeMock(),
-                    authorizedAt: load.escrow.authorizedAt?.toISOString() ?? null,
-                    capturedAt: load.escrow.capturedAt?.toISOString() ?? null,
-                    stripePaymentIntentId: load.escrow.stripePaymentIntentId,
-                  }
-                : null
-            }
-          />
+          {showLiveMap && trackerUserId ? (
+            <DriverLiveMap
+              userId={trackerUserId}
+              loadId={load.id}
+              label={accepted?.driver?.fullName || "Carrier"}
+            />
+          ) : null}
+
+          <div className="rounded-lg border border-border bg-card p-4 text-sm shadow-sm">
+            <p className="font-bold">Settlement</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Escrow is paused. Platform admin handles collection and carrier
+              payout offline after award.
+            </p>
+            {accepted ? (
+              <p className="mt-2 text-xs font-semibold">
+                Awarded at{" "}
+                {formatMoney(Number(accepted.proposedPrice), accepted.currency)}
+              </p>
+            ) : null}
+          </div>
 
           <div className="flex items-center justify-between rounded-lg border border-success-container/40 bg-surface p-4 text-xs">
             <div>
@@ -667,7 +650,7 @@ export default async function ShipperLoadDetailPage({
 
           <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-[11px] text-muted-foreground">
             <ShieldCheck className="size-4 text-success" />
-            Award binds escrow and rejects remaining pending bids automatically.
+            When admin accepts a bid, other offers are rejected automatically.
           </div>
         </div>
       </div>
