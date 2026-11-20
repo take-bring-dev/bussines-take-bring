@@ -263,10 +263,7 @@ export default async function CarrierHomePage() {
           </div>
         </div>
 
-        <CarrierFreightBoard
-          loads={cards}
-          bidderKind={user.role === "CARRIER_DRIVER" ? "driver" : "carrier"}
-        />
+        <CarrierFreightBoard loads={cards} bidderKind="carrier" />
       </div>
     </div>
   );

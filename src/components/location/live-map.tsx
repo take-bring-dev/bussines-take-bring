@@ -42,7 +42,6 @@ export function LiveMap({
     async function boot() {
       if (!containerRef.current || mapRef.current) return;
       const L = await import("leaflet");
-      // @ts-expect-error css side-effect
       await import("leaflet/dist/leaflet.css");
 
       if (cancelled || !containerRef.current) return;
